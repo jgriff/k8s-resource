@@ -18,7 +18,7 @@ resourceVersion=$(jq -r '.version.resourceVersion // ""' < $payload)
 cd $1
 
 # fetch the requested resource
-log -p "Retrieving ${cyan}${resource_types}${reset} resource ${yellow}'$uid'${reset} at version ${yellow}'$resourceVersion'${reset} from cluster at ${blue}'$url'${reset}..."
+log -p "\nRetrieving ${cyan}${resource_types}${reset} resource ${yellow}'$uid'${reset} at version ${yellow}'$resourceVersion'${reset} from cluster at ${blue}'$url'${reset}..."
 kubectl --server=$url --token=$token --certificate-authority=$ca_file get $resource_types --all-namespaces -o json \
  | jq --arg uid $uid --arg resourceVersion $resourceVersion '.items[] | select((.metadata.uid == $uid and .metadata.resourceVersion == $resourceVersion))' \
  > resource.json
