@@ -33,7 +33,7 @@ if [ -s resource.json ]; then
         resourceVersion: $(echo $resourceVersion | jq -R .)
       },
       metadata: $(cat resource.json | jq '.metadata | to_entries | [.[] | .["name"] = .key | del(.key)]')
-    }" | jq '{version: .version} + {metadata: [.metadata[] | select(.value != "")]}' >&3
+    }" | jq '{version: .version} + {metadata: [.metadata[] | select((.value | strings) and (.value != ""))]}' >&3
 else
     # file is empty, which means the resource wasn't available
     log -p "${red}Resource not found!${reset}\nIt has either been deleted, or it could be that the resource has been updated and has a version newer than ${yellow}'$resourceVersion'${reset}.  If that is the case, a new (Concourse) version of the resource should follow after this one."
