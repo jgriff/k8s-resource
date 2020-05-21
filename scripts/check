@@ -1,0 +1,67 @@
+#!/bin/sh
+
+set -e
+
+exec 3>&1 # make stdout available as fd 3 for the result
+exec 1>&2 # redirect all output to stderr for logging
+
+. $(dirname $0)/common
+
+log "\n\n--[CHECK]-------------------------"
+
+previous_version=$(jq -r '.version // ""' < $payload)
+log "Was given version: $previous_version"
+
+queryForVersions() {
+    log "\n--> querying k8s cluster for '$resource_types' resources..."
+    new_versions=$(kubectl --server=$url --token=$token --certificate-authority=$ca_file  get $resource_types --all-namespaces --sort-by='{.metadata.resourceVersion}' -o json | jq '[.items[].metadata]' )
+    log "$new_versions"
+}
+
+filterByName() {
+    FILTER_NAME=$(jq -r '.source.filter.name // ""' < $payload)
+    if [ ! -z "$FILTER_NAME" ]; then
+        log "\n--> filtering by name '$FILTER_NAME'..."
+        new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq --arg FILTER_NAME $FILTER_NAME -r '[.[] | select(.name | test($FILTER_NAME))]')
+        log "$new_versions"
+    else
+        log "\n--> name filter not configured, skipping...."
+    fi
+}
+
+filterByCreationOlderThan() {
+    FILTER_OLDER_THAN=$(jq -r '.source.filter.olderThan // ""' < $payload)
+    if [ ! -z "$FILTER_OLDER_THAN" ]; then
+        log "\n--> filtering by creation timestamp older than '$FILTER_OLDER_THAN'..."
+        new_versions=$(echo $new_versions  | tr '\r\n' ' ' | jq --argjson MAX_AGE $(( $(date +%s) - $FILTER_OLDER_THAN)) -r '[.[] | select(.creationTimestamp | fromdate | tonumber | select(. < $MAX_AGE)) ]')
+        log "$new_versions"
+    else
+        log "\n--> creation timestamp (older than) filter not configured, skipping...."
+    fi
+}
+
+pareDownVersionInfo() {
+    log "\n--> pairing down version metadata to just uid/version..."
+    new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq 'map({uid,resourceVersion})')
+    log "$new_versions"
+}
+
+queryForVersions
+filterByName
+filterByCreationOlderThan
+pareDownVersionInfo
+
+log "\n--> all current version(s) to be emitted are: $(echo $new_versions | tr '\r\n' ' ' | jq '.')"
+
+if [ -z "$previous_version" ]; then
+    # no previous version given, this is the first check.... emit just the first of the new versions (if we have one)
+    log "\n--> producing initial version..."
+    initial_version=$(echo $new_versions | tr '\r\n' ' ' | jq '. | select(length > 0) | .[0]')
+    out="[$initial_version]"
+else
+    log "\n--> producing current batch of version(s)..."
+    out="$new_versions"
+fi
+
+log "\n--> OUT\n$out"
+jq -n "$out" | jq 'flatten' >&3

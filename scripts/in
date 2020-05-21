@@ -1,0 +1,41 @@
+#!/bin/sh
+
+set -e
+
+exec 3>&1 # make stdout available as fd 3 for the result
+exec 1>&2 # redirect all output to stderr for logging
+
+. $(dirname $0)/common
+
+log "\n\n--[IN]-------------------------"
+
+version=$(jq -r '.version // ""' < $payload)
+log "Was given version: $version"
+
+uid=$(jq -r '.version.uid // ""' < $payload)
+resourceVersion=$(jq -r '.version.resourceVersion // ""' < $payload)
+
+cd $1
+
+# fetch the requested resource
+log -p "Retrieving ${cyan}${resource_types}${reset} resource ${yellow}'$uid'${reset} at version ${yellow}'$resourceVersion'${reset} from cluster at ${blue}'$url'${reset}..."
+kubectl --server=$url --token=$token --certificate-authority=$ca_file get $resource_types --all-namespaces -o json \
+ | jq --arg uid $uid --arg resourceVersion $resourceVersion '.items[] | select((.metadata.uid == $uid and .metadata.resourceVersion == $resourceVersion))' \
+ > resource.json
+
+if [ -s resource.json ]; then
+    # TODO config param to control whether this is --public?
+    log -p -j "$(cat resource.json)"
+
+    jq -n "{
+      version: {
+        uid: $(echo $uid | jq -R .),
+        resourceVersion: $(echo $resourceVersion | jq -R .)
+      },
+      metadata: $(cat resource.json | jq '.metadata | to_entries | [.[] | .["name"] = .key | del(.key)]')
+    }" | jq '{version: .version} + {metadata: [.metadata[] | select(.value != "")]}' >&3
+else
+    # file is empty, which means the resource wasn't available
+    log -p "${red}Resource not found!${reset}\nIt has either been deleted, or it could be that the resource has been updated and has a version newer than ${yellow}'$resourceVersion'${reset}.  If that is the case, a new (Concourse) version of the resource should follow after this one."
+    exit 1
+fi

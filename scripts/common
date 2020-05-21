@@ -1,0 +1,58 @@
+#!/bin/sh
+
+# colors
+export esc=$(printf '\033')
+export red=${esc}$(printf '[31m')
+export yellow=${esc}$(printf '[33m')
+export blue=${esc}$(printf '[34m')
+export cyan=${esc}$(printf '[36m')
+export white=${esc}$(printf '[37m')
+export reset=${esc}$(printf '[0m')
+
+log() {
+    # accept args
+    while test $# -gt 0; do
+      case "$1" in
+          -p|--public)
+              shift
+              PUBLIC=true
+              ;;
+          -j|--json)
+              shift
+              JSON=true
+              ;;
+          *)
+              break
+              ;;
+      esac
+    done
+
+  # if the arg given is json, pretty print it
+  if [ "$JSON" = true ]; then
+    echo $1 | tr '\r\n' ' ' | jq -r '.' >> /tmp/resource.log
+  else
+    echo $1 >> /tmp/resource.log
+  fi
+
+  # also echo this to stdout so it shows up in concourse ui console
+  if [ "$PUBLIC" = true ]; then
+      if [ "$JSON" = true ]; then
+        echo $1 | tr '\r\n' ' ' | jq -r '.'
+      else
+        echo $1
+      fi
+  fi
+}
+
+payload=$(mktemp /tmp/resource-in.XXXXXX)
+cat > $payload <&0
+
+# source config
+url=$(jq -r '.source.url // ""' < $payload)
+token=$(jq -r '.source.token // ""' < $payload)
+ca=$(jq -r '.source.certificate_authority // ""' < $payload)
+resource_types=$(jq -r '.source.resource_types // "pod"' < $payload)
+
+# write the ca file out (have to pass a file ref to kubectl)
+ca_file=$(mktemp /tmp/resource-ca_file.XXXXXX)
+echo "$ca" > "$ca_file"

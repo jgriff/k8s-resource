@@ -1,0 +1,8 @@
+# Build
+#########
+.docker
+
+# Misc
+##############
+.DS_Store
+.private/
