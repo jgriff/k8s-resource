@@ -1,0 +1,293 @@
+#!/usr/bin/env bats
+
+load '/opt/bats/addons/bats-support/load.bash'
+load '/opt/bats/addons/bats-assert/load.bash'
+load '/opt/bats/addons/bats-mock/stub.bash'
+
+source_check() {
+    stdin_payload=${1:-"stdin-source"}
+    kubectl_response=${2:-"kubectl-response"}
+
+    # source the common script
+    source "$SUT_SCRIPTS_DIR/common" <<< "$(<$BATS_TEST_DIRNAME/fixtures/$stdin_payload.json)"
+
+    # stub the log function
+    #log() { echo "$@"; } # use this during development to see log output
+    log() { :; }
+    export -f log
+
+    # mock kubectl to return our expected response
+    local expected_kubectl_args="--server=$url --token=$token --certificate-authority=$ca_file \
+            get $resource_types --all-namespaces --sort-by={.metadata.resourceVersion} -o json"
+    stub kubectl "$expected_kubectl_args : cat $BATS_TEST_DIRNAME/fixtures/$kubectl_response.json"
+
+    # source the sut
+    source "$SUT_SCRIPTS_DIR/check"
+}
+
+teardown() {
+    # don't strictly assert invocations
+    unstub kubectl || true
+}
+
+@test "[check] previous version is extracted" {
+    source_check "stdin-source-with-version"
+
+    extractPreviousVersion
+
+    assert_equal $(jq -r '.uid' <<< "$previous_version") 'cee83946-92c3-11e9-a784-3497f601230d'
+    assert_equal $(jq -r '.resourceVersion' <<< "$previous_version") '6988465'
+}
+
+@test "[check] previous version is empty if not provided" {
+    source_check "stdin-source"
+
+    extractPreviousVersion
+
+    assert_equal "$previous_version" ''
+}
+
+@test "[check] queries k8s cluster for new versions" {
+    source_check
+
+    queryForVersions
+
+    assert_equal $(jq length <<< "$new_versions") 3
+    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[2].name' <<< "$new_versions")" 'namespace-other'
+}
+
+@test "[check] filter by name matches exact strings" {
+    source_check "stdin-source-filter-name"
+
+    new_versions='[
+        { "name": "namespace-1" },
+        { "name": "namespace-2" },
+        { "name": "namespace-other" }
+    ]'
+
+    filterByName
+
+    # then only names exactly matching remain
+    assert_equal $(jq length <<< "$new_versions") 1
+    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-2'
+}
+
+@test "[check] filter by name matches regex" {
+    source_check "stdin-source-filter-name-regex"
+
+    new_versions='[
+        { "name": "namespace-1" },
+        { "name": "namespace-2" },
+        { "name": "namespace-other" }
+    ]'
+
+    filterByName
+
+    # then only names matching the regex remain
+    assert_equal $(jq length <<< "$new_versions") 2
+    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].name' <<< "$new_versions")" 'namespace-2'
+}
+
+@test "[check] filter by name not configured" {
+    source_check "stdin-source-empty"
+
+    new_versions='[
+        { "name": "namespace-1" },
+        { "name": "namespace-2" },
+        { "name": "namespace-other" }
+    ]'
+
+    filterByName
+
+    # then our 'new_versions' is left unchanged
+    assert_equal $(jq length <<< "$new_versions") 3
+    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[2].name' <<< "$new_versions")" 'namespace-other'
+}
+
+@test "[check] filter by olderThan" {
+    source_check "stdin-source-filter-olderThan"
+
+    now="$(date +%Y-%m-%dT%H:%M:%SZ)"
+    hourAgo="$(date -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
+    dayAgo="$(date -d '25 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+
+    new_versions="[
+        {
+            \"name\": \"namespace-1\",
+            \"creationTimestamp\": \"$now\"
+        },
+        {
+            \"name\": \"namespace-2\",
+            \"creationTimestamp\": \"$hourAgo\"
+        },
+        {
+            \"name\": \"namespace-3\",
+            \"creationTimestamp\": \"$dayAgo\"
+        }
+    ]"
+
+    filterByCreationOlderThan
+
+    # then we only have namespaces older than our criteria (24 hours)
+    assert_equal $(jq length <<< "$new_versions") 1
+    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-3'
+}
+
+@test "[check] filter by olderThan not configured" {
+    source_check "stdin-source-empty"
+
+    new_versions='[
+        { "name": "namespace-1" },
+        { "name": "namespace-2" },
+        { "name": "namespace-other" }
+    ]'
+
+    filterByCreationOlderThan
+
+    # then our 'new_versions' is left unchanged
+    assert_equal $(jq length <<< "$new_versions") 3
+    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[2].name' <<< "$new_versions")" 'namespace-other'
+}
+
+@test "[check] pare down version info and emit only uid/resourceVersion" {
+    source_check
+
+    new_versions="[
+        {
+            \"uid\": \"uid-1\",
+            \"foo\": \"bar-1\",
+            \"resourceVersion\": \"resourceVersion-1\"
+        },
+        {
+            \"uid\": \"uid-2\",
+            \"foo\": \"bar-2\",
+            \"resourceVersion\": \"resourceVersion-2\"
+        },
+        {
+            \"uid\": \"uid-3\",
+            \"foo\": \"bar-3\",
+            \"resourceVersion\": \"resourceVersion-3\"
+        }
+    ]"
+
+    pareDownVersionInfo
+
+    # then our 'new_versions' still has all 3 versions
+    assert_equal $(jq length <<< "$new_versions") 3
+
+    # with their uid...
+    assert_equal "$(jq -r '.[0].uid' <<< "$new_versions")" 'uid-1'
+    assert_equal "$(jq -r '.[1].uid' <<< "$new_versions")" 'uid-2'
+    assert_equal "$(jq -r '.[2].uid' <<< "$new_versions")" 'uid-3'
+
+    # and their resourceVersion...
+    assert_equal "$(jq -r '.[0].resourceVersion' <<< "$new_versions")" 'resourceVersion-1'
+    assert_equal "$(jq -r '.[1].resourceVersion' <<< "$new_versions")" 'resourceVersion-2'
+    assert_equal "$(jq -r '.[2].resourceVersion' <<< "$new_versions")" 'resourceVersion-3'
+
+    # but nothing else!
+    assert_equal "$(jq -r '.[0] | length' <<< "$new_versions")" '2'
+    assert_equal "$(jq -r '.[1] | length' <<< "$new_versions")" '2'
+    assert_equal "$(jq -r '.[2] | length' <<< "$new_versions")" '2'
+}
+
+@test "[check] emits result from first check with only initial version" {
+    source_check
+
+    new_versions="[
+        {
+            \"uid\": \"uid-1\",
+            \"resourceVersion\": \"resourceVersion-1\"
+        },
+        {
+            \"uid\": \"uid-2\",
+            \"resourceVersion\": \"resourceVersion-2\"
+        },
+        {
+            \"uid\": \"uid-3\",
+            \"resourceVersion\": \"resourceVersion-3\"
+        }
+    ]"
+
+    # check writes to fd 5 for the result, so redirect that to stdout for our test
+    output=$(emitResult 5>&1)
+
+    # emits only the first version since this is the "first" check (was called without a previous version)
+    assert_equal $(jq length <<< "$output") 1
+    assert_equal "$(jq -r '.[0].uid' <<< "$new_versions")" 'uid-1'
+    assert_equal "$(jq -r '.[0].resourceVersion' <<< "$new_versions")" 'resourceVersion-1'
+}
+
+@test "[check] emits result from subsequent checks with all current versions" {
+    source_check
+
+    previous_version="does not matter, only that it is not empty"
+    new_versions="[
+        {
+            \"uid\": \"uid-1\",
+            \"resourceVersion\": \"resourceVersion-1\"
+        },
+        {
+            \"uid\": \"uid-2\",
+            \"resourceVersion\": \"resourceVersion-2\"
+        },
+        {
+            \"uid\": \"uid-3\",
+            \"resourceVersion\": \"resourceVersion-3\"
+        }
+    ]"
+
+    # check writes to fd 5 for the result, so redirect that to stdout for our test
+    output=$(emitResult 5>&1)
+
+    # emits only the first version since this is the "first" check (was called without a previous version)
+    assert_equal $(jq length <<< "$output") 3
+
+    assert_equal "$(jq -r '.[0].uid' <<< "$new_versions")" 'uid-1'
+    assert_equal "$(jq -r '.[0].resourceVersion' <<< "$new_versions")" 'resourceVersion-1'
+
+    assert_equal "$(jq -r '.[1].uid' <<< "$new_versions")" 'uid-2'
+    assert_equal "$(jq -r '.[1].resourceVersion' <<< "$new_versions")" 'resourceVersion-2'
+
+    assert_equal "$(jq -r '.[2].uid' <<< "$new_versions")" 'uid-3'
+    assert_equal "$(jq -r '.[2].resourceVersion' <<< "$new_versions")" 'resourceVersion-3'
+}
+
+@test "[check] e2e initial check" {
+    source_check
+
+    output=$(main 5>&1)
+
+    # should emit 1 version
+    assert_equal $(jq length <<< "$output") 1
+    # with only its 'uid' and 'resourceVersion' attributes
+    assert_equal "$(jq -r '.[0] | length' <<< "$output")" '2'
+    assert_equal "$(jq -r '.[0].uid' <<< "$output")" 'cee83946-92c3-11e9-a784-3497f601230d'
+    assert_equal "$(jq -r '.[0].resourceVersion' <<< "$output")" '6988465'
+}
+
+@test "[check] e2e subsequent check" {
+    source_check "stdin-source-with-version"
+
+    output=$(main 5>&1)
+
+    # should emit all 3 versions
+    assert_equal $(jq length <<< "$output") 3
+    # with only its 'uid' and 'resourceVersion' attributes
+    assert_equal "$(jq -r '.[0] | length' <<< "$output")" '2'
+    assert_equal "$(jq -r '.[0].uid' <<< "$output")" 'cee83946-92c3-11e9-a784-3497f601230d'
+    assert_equal "$(jq -r '.[0].resourceVersion' <<< "$output")" '6988465'
+    assert_equal "$(jq -r '.[1] | length' <<< "$output")" '2'
+    assert_equal "$(jq -r '.[1].uid' <<< "$output")" '8fca7c5f-c513-11e9-a16f-1831bfd00891'
+    assert_equal "$(jq -r '.[1].resourceVersion' <<< "$output")" '22577654'
+    assert_equal "$(jq -r '.[2] | length' <<< "$output")" '2'
+    assert_equal "$(jq -r '.[2].uid' <<< "$output")" 'd0abb6fa-d17a-4e05-8d71-d5c3810945ad'
+    assert_equal "$(jq -r '.[2].resourceVersion' <<< "$output")" '56109593'
+}

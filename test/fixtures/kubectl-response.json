@@ -1,0 +1,43 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {
+                "creationTimestamp": "2019-06-19T18:55:29Z",
+                "name": "namespace-1",
+                "resourceVersion": "6988465",
+                "selfLink": "/api/v1/namespaces/namespace-1",
+                "uid": "cee83946-92c3-11e9-a784-3497f601230d"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {
+                "creationTimestamp": "2019-08-22T19:32:21Z",
+                "name": "namespace-2",
+                "resourceVersion": "22577654",
+                "selfLink": "/api/v1/namespaces/namespace-2",
+                "uid": "8fca7c5f-c513-11e9-a16f-1831bfd00891"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {
+                "creationTimestamp": "2020-01-14T04:06:46Z",
+                "name": "namespace-other",
+                "resourceVersion": "56109593",
+                "selfLink": "/api/v1/namespaces/namespace-other",
+                "uid": "d0abb6fa-d17a-4e05-8d71-d5c3810945ad"
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": "",
+        "selfLink": ""
+    }
+}

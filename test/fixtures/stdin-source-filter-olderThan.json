@@ -1,0 +1,7 @@
+{
+  "source": {
+    "filter": {
+      "olderThan": 86400
+    }
+  }
+}

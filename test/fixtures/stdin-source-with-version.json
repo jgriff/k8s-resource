@@ -1,0 +1,12 @@
+{
+  "source": {
+    "url": "https://some-server:8443",
+    "token": "a-token",
+    "certificate_authority": "a-certificate",
+    "resource_types": "namespaces"
+  },
+  "version": {
+    "uid": "cee83946-92c3-11e9-a784-3497f601230d",
+    "resourceVersion": 6988465
+  }
+}

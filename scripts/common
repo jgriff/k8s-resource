@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # colors
 export esc=$(printf '\033')
@@ -31,7 +31,7 @@ log() {
   if [ "$JSON" = true ]; then
     echo $1 | tr '\r\n' ' ' | jq -r '.' >> /tmp/resource.log
   else
-    echo $1 >> /tmp/resource.log
+    echo -e $1 >> /tmp/resource.log
   fi
 
   # also echo this to stdout so it shows up in concourse ui console
@@ -39,7 +39,7 @@ log() {
       if [ "$JSON" = true ]; then
         echo $1 | tr '\r\n' ' ' | jq -r '.'
       else
-        echo $1
+        echo -e $1
       fi
   fi
 }

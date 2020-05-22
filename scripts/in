@@ -1,41 +1,61 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
-exec 3>&1 # make stdout available as fd 3 for the result
+exec 5>&1 # make stdout available as fd 5 for the result
 exec 1>&2 # redirect all output to stderr for logging
 
-. $(dirname $0)/common
+main() {
+    log "\n\n--[IN]-------------------------"
+    targetDirectory $1
+    extractVersion
+    fetchResource
+    emitResult
+}
 
-log "\n\n--[IN]-------------------------"
+targetDirectory() {
+    target_dir=${1:-`echo $TMPDIR`}
+    log "\n--> Target directory is: $target_dir"
+}
 
-version=$(jq -r '.version // ""' < $payload)
-log "Was given version: $version"
+extractVersion() {
+    log "\n--> extracting version..."
+    version=$(jq -r '.version // ""' < $payload)
+    log "Was given version: $version"
+    uid=$(jq -r '.uid // ""' <<< $version)
+    resourceVersion=$(jq -r '.resourceVersion // ""' <<< $version)
+}
 
-uid=$(jq -r '.version.uid // ""' < $payload)
-resourceVersion=$(jq -r '.version.resourceVersion // ""' < $payload)
+fetchResource() {
+    # fetch the requested resource
+    log -p "\nRetrieving ${cyan}${resource_types}${reset} resource ${yellow}'$uid'${reset} at version ${yellow}'$resourceVersion'${reset} from cluster at ${blue}'$url'${reset}..."
+    kubectl --server=$url --token=$token --certificate-authority=$ca_file get $resource_types --all-namespaces --sort-by={.metadata.resourceVersion} -o json \
+          | jq --arg uid $uid --arg resourceVersion $resourceVersion '.items[] | select((.metadata.uid == $uid and .metadata.resourceVersion == $resourceVersion))' \
+     > $target_dir/resource.json
+}
 
-cd $1
+emitResult() {
+    if [ -s "$target_dir/resource.json" ]; then
+        # TODO config param to control whether this is --public?
+        log -p -j "$(cat $target_dir/resource.json)"
 
-# fetch the requested resource
-log -p "\nRetrieving ${cyan}${resource_types}${reset} resource ${yellow}'$uid'${reset} at version ${yellow}'$resourceVersion'${reset} from cluster at ${blue}'$url'${reset}..."
-kubectl --server=$url --token=$token --certificate-authority=$ca_file get $resource_types --all-namespaces -o json \
- | jq --arg uid $uid --arg resourceVersion $resourceVersion '.items[] | select((.metadata.uid == $uid and .metadata.resourceVersion == $resourceVersion))' \
- > resource.json
+        jq -n "{
+          version: {
+            uid: \"$uid\",
+            resourceVersion: \"$resourceVersion\"
+          },
+          metadata: $(cat $target_dir/resource.json | jq '.metadata | to_entries | [.[] | .["name"] = .key | del(.key)]')
+        }" | jq '{version: .version} + {metadata: [.metadata[] | select((.value | strings) and (.value != ""))]}' >&5
+    else
+        # file is empty, which means the resource wasn't available
+        log -p "${red}Resource not found!${reset}\nIt has either been deleted, or it could be that the resource has been \
+            updated and has a version newer than ${yellow}'$resourceVersion'${reset}.  \
+            If that is the case, a new (Concourse) version of the resource should follow after this one."
+        exit 1
+    fi
+}
 
-if [ -s resource.json ]; then
-    # TODO config param to control whether this is --public?
-    log -p -j "$(cat resource.json)"
-
-    jq -n "{
-      version: {
-        uid: $(echo $uid | jq -R .),
-        resourceVersion: $(echo $resourceVersion | jq -R .)
-      },
-      metadata: $(cat resource.json | jq '.metadata | to_entries | [.[] | .["name"] = .key | del(.key)]')
-    }" | jq '{version: .version} + {metadata: [.metadata[] | select((.value | strings) and (.value != ""))]}' >&3
-else
-    # file is empty, which means the resource wasn't available
-    log -p "${red}Resource not found!${reset}\nIt has either been deleted, or it could be that the resource has been updated and has a version newer than ${yellow}'$resourceVersion'${reset}.  If that is the case, a new (Concourse) version of the resource should follow after this one."
-    exit 1
+if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
+    source $(dirname $0)/common
+    main "$@"
 fi
