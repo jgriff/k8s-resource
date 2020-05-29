@@ -17,8 +17,8 @@ source_check() {
     export -f log
 
     # mock kubectl to return our expected response
-    local expected_kubectl_args="--server=$url --token=$token --certificate-authority=$ca_file \
-            get $resource_types --all-namespaces --sort-by={.metadata.resourceVersion} -o json"
+    local expected_kubectl_args="--server=$source_url --token=$source_token --certificate-authority=$source_ca_file \
+            get $source_resource_types --all-namespaces --sort-by={.metadata.resourceVersion} -o json"
     stub kubectl "$expected_kubectl_args : cat $BATS_TEST_DIRNAME/fixtures/$kubectl_response.json"
 
     # source the sut
