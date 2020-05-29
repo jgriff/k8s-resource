@@ -1,0 +1,8 @@
+{
+  "source": {
+    "url": "https://some-server:8443",
+    "token": "a-token",
+    "certificate_authority": "a-certificate",
+    "resource_types": "namespaces"
+  }
+}

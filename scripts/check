@@ -1,16 +1,25 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
-exec 3>&1 # make stdout available as fd 3 for the result
+exec 5>&1 # make stdout available as fd 5 for the result
 exec 1>&2 # redirect all output to stderr for logging
 
-. $(dirname $0)/common
+main() {
+    log "\n\n--[CHECK]-------------------------"
+    extractPreviousVersion
+    queryForVersions
+    filterByName
+    filterByCreationOlderThan
+    pareDownVersionInfo
+    emitResult
+}
 
-log "\n\n--[CHECK]-------------------------"
-
-previous_version=$(jq -r '.version // ""' < $payload)
-log "Was given version: $previous_version"
+extractPreviousVersion() {
+    log "\n--> extracting previous version..."
+    previous_version=$(jq -r '.version // ""' < $payload)
+    log "previous version: $previous_version"
+}
 
 queryForVersions() {
     log "\n--> querying k8s cluster for '$resource_types' resources..."
@@ -46,22 +55,24 @@ pareDownVersionInfo() {
     log "$new_versions"
 }
 
-queryForVersions
-filterByName
-filterByCreationOlderThan
-pareDownVersionInfo
+emitResult() {
+    log "\n--> all current version(s) to be emitted are: $(echo $new_versions | tr '\r\n' ' ' | jq '.')"
 
-log "\n--> all current version(s) to be emitted are: $(echo $new_versions | tr '\r\n' ' ' | jq '.')"
+    if [ -z "$previous_version" ]; then
+        # no previous version given, this is the first check.... emit just the first of the new versions (if we have one)
+        log "\n--> producing initial version..."
+        initial_version=$(echo $new_versions | tr '\r\n' ' ' | jq '. | select(length > 0) | .[0]')
+        out="[$initial_version]"
+    else
+        log "\n--> producing current batch of version(s)..."
+        out="$new_versions"
+    fi
 
-if [ -z "$previous_version" ]; then
-    # no previous version given, this is the first check.... emit just the first of the new versions (if we have one)
-    log "\n--> producing initial version..."
-    initial_version=$(echo $new_versions | tr '\r\n' ' ' | jq '. | select(length > 0) | .[0]')
-    out="[$initial_version]"
-else
-    log "\n--> producing current batch of version(s)..."
-    out="$new_versions"
+    log "\n--> OUT\n$out"
+    jq -n "$out" | jq 'flatten' >&5
+}
+
+if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
+    source $(dirname $0)/common
+    main "$@"
 fi
-
-log "\n--> OUT\n$out"
-jq -n "$out" | jq 'flatten' >&3
