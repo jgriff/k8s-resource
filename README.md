@@ -15,6 +15,7 @@ A Concourse [resource](https://resource-types.concourse-ci.org/) for retrieving 
   ```
 
 * `resource_types`: _Optional_. Comma separated list of resource type(s) to retrieve (defaults to just `pod`).
+* `namespace`: _Optional_. The namespace to restrict the query to.  Defaults to all namespaces (`--all-namespaces`).
 * `filter`: _Optional_. Can contain any/all of the following criteria:
   * `name`: Matches against the `metadata.name` of the resource.  Supports both literal (`my-ns-1`) and regular expressions (`"my-ns-[0-9]*$"`).
   * `olderThan`: Time in seconds that the `metadata.creationTimestamp` must be older than.
