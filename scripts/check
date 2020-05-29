@@ -23,7 +23,7 @@ extractPreviousVersion() {
 
 queryForVersions() {
     log "\n--> querying k8s cluster for '$source_resource_types' resources..."
-    new_versions=$(kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file  get $source_resource_types --all-namespaces --sort-by='{.metadata.resourceVersion}' -o json | jq '[.items[].metadata]' )
+    new_versions=$(kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file  get $source_resource_types $namespace_arg --sort-by='{.metadata.resourceVersion}' -o json | jq '[.items[].metadata]' )
     log "$new_versions"
 }
 

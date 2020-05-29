@@ -90,11 +90,19 @@ source_url=$(jq -r '.source.url // ""' < $payload)
 source_token=$(jq -r '.source.token // ""' < $payload)
 source_ca=$(jq -r '.source.certificate_authority // ""' < $payload)
 source_resource_types=$(jq -r '.source.resource_types // "pod"' < $payload)
+source_namespace=$(jq -r '.source.namespace | select(.!=null)' < $payload)
 source_sensitive=$(jq -r '.source.sensitive | select(.!=null)' < $payload)
 
 # write the ca file out (have to pass a file ref to kubectl)
 source_ca_file=$(mktemp /tmp/resource-ca_file.XXXXXX)
 echo "$source_ca" > "$source_ca_file"
+
+# craft a var for specifying the namespace
+if isSet source_namespace; then
+    namespace_arg="-n $source_namespace"
+else
+    namespace_arg="--all-namespaces"
+fi
 
 # params config
 params_sensitive=$(jq -r '.params.sensitive  | select(.!=null)' < $payload)

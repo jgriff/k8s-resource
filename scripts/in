@@ -28,8 +28,8 @@ extractVersion() {
 
 fetchResource() {
     # fetch the requested resource
-    log -p "\nRetrieving ${cyan}${source_resource_types}${reset} resource ${yellow}'$uid'${reset} at version ${yellow}'$resourceVersion'${reset} from cluster at ${blue}'${source_url}'${reset}..."
-    kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file get $source_resource_types --all-namespaces --sort-by={.metadata.resourceVersion} -o json \
+    log -p "\nRetrieving ${cyan}${source_resource_types}${reset} resource ${yellow}'$uid'${reset} at version ${yellow}'$resourceVersion'${reset} from cluster at ${blue}'${source_url}'${reset} in namespace ${blue}'${source_namespace:---all-namespaces}'${reset}..."
+    kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file get $source_resource_types $namespace_arg --sort-by={.metadata.resourceVersion} -o json \
           | jq --arg uid $uid --arg resourceVersion $resourceVersion '.items[] | select((.metadata.uid == $uid and .metadata.resourceVersion == $resourceVersion))' \
      > $target_dir/resource.json
 }

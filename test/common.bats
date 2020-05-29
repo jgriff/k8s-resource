@@ -43,6 +43,24 @@ run_with() {
     assert_equal "$source_sensitive" 'true'
 }
 
+@test "[common] extracts 'source.namespace' as variable 'source_namespace'" {
+    run_with "stdin-source-namespace"
+    assert isSet source_namespace
+    assert_equal "$source_namespace" 'my-namespace'
+}
+
+@test "[common] creates variable 'namespace_arg' with value of '-n \$source_namespace' when 'source.namespace' is configured" {
+    run_with "stdin-source-namespace"
+    assert isSet namespace_arg
+    assert_equal "$namespace_arg" '-n my-namespace'
+}
+
+@test "[common] creates variable 'namespace_arg' with value of '--all-namespaces' when 'source.namespace' is not configured" {
+    run_with "stdin-source"
+    assert isSet namespace_arg
+    assert_equal "$namespace_arg" '--all-namespaces'
+}
+
 @test "[common] extracts 'params.sensitive' as variable 'params_sensitive'" {
     run_with "stdin-params-sensitive-true"
     assert isSet params_sensitive
@@ -72,6 +90,12 @@ run_with() {
     run_with "stdin-source-empty"
     assert isSet source_resource_types
     assert_equal "$source_resource_types" 'pod'
+}
+
+@test "[common] defaults 'source_namespace' to empty" {
+    run_with "stdin-source-empty"
+    assert notSet source_namespace
+    assert_equal "$source_namespace" ''
 }
 
 @test "[common] defaults 'source_sensitive' to empty" {

@@ -4,6 +4,11 @@ load '/opt/bats/addons/bats-support/load.bash'
 load '/opt/bats/addons/bats-assert/load.bash'
 load '/opt/bats/addons/bats-mock/stub.bash'
 
+setup() {
+    # this is the default when source config doesn't specify
+    expected_namespace_arg="--all-namespaces"
+}
+
 source_check() {
     stdin_payload=${1:-"stdin-source"}
     kubectl_response=${2:-"kubectl-response"}
@@ -18,7 +23,7 @@ source_check() {
 
     # mock kubectl to return our expected response
     local expected_kubectl_args="--server=$source_url --token=$source_token --certificate-authority=$source_ca_file \
-            get $source_resource_types --all-namespaces --sort-by={.metadata.resourceVersion} -o json"
+            get $source_resource_types $expected_namespace_arg --sort-by={.metadata.resourceVersion} -o json"
     stub kubectl "$expected_kubectl_args : cat $BATS_TEST_DIRNAME/fixtures/$kubectl_response.json"
 
     # source the sut
@@ -290,4 +295,16 @@ teardown() {
     assert_equal "$(jq -r '.[2] | length' <<< "$output")" '2'
     assert_equal "$(jq -r '.[2].uid' <<< "$output")" 'd0abb6fa-d17a-4e05-8d71-d5c3810945ad'
     assert_equal "$(jq -r '.[2].resourceVersion' <<< "$output")" '56109593'
+}
+
+@test "[check] GH-2 queries namespace specified in source config 'namespace'" {
+    expected_namespace_arg="-n my-namespace"
+    source_check "stdin-source-namespace"
+
+    queryForVersions
+
+    assert_equal $(jq length <<< "$new_versions") 3
+    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[2].name' <<< "$new_versions")" 'namespace-other'
 }
