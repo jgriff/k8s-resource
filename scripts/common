@@ -44,15 +44,57 @@ log() {
   fi
 }
 
+isTrue() {
+    if notSet $1; then
+        return 1;
+    else
+        eval varVal=\$$1;
+        if ! [[ $varVal = true ]]; then
+            return 1;
+        fi
+    fi
+}
+
+notTrue() {
+    if ! notSet $1; then
+        eval varVal=\$$1;
+        if [[ $varVal = true ]]; then
+            return 1;
+        fi
+    fi
+}
+
+isSet() {
+    eval varVal=\$$1;
+    if [ -z "$varVal" ]; then return 1; fi
+    return 0;
+}
+
+notSet() {
+    eval varVal=\$$1;
+    if [ -z "$varVal" ]; then return 0; fi
+    return 1;
+}
+
+isSensitive() {
+    if isTrue params_sensitive; then return 0; fi
+    if isTrue source_sensitive && notSet params_sensitive; then return 0; fi
+    return 1;
+}
+
 payload=$(mktemp /tmp/resource-in.XXXXXX)
 cat > $payload <&0
 
 # source config
-url=$(jq -r '.source.url // ""' < $payload)
-token=$(jq -r '.source.token // ""' < $payload)
-ca=$(jq -r '.source.certificate_authority // ""' < $payload)
-resource_types=$(jq -r '.source.resource_types // "pod"' < $payload)
+source_url=$(jq -r '.source.url // ""' < $payload)
+source_token=$(jq -r '.source.token // ""' < $payload)
+source_ca=$(jq -r '.source.certificate_authority // ""' < $payload)
+source_resource_types=$(jq -r '.source.resource_types // "pod"' < $payload)
+source_sensitive=$(jq -r '.source.sensitive | select(.!=null)' < $payload)
 
 # write the ca file out (have to pass a file ref to kubectl)
-ca_file=$(mktemp /tmp/resource-ca_file.XXXXXX)
-echo "$ca" > "$ca_file"
+source_ca_file=$(mktemp /tmp/resource-ca_file.XXXXXX)
+echo "$source_ca" > "$source_ca_file"
+
+# params config
+params_sensitive=$(jq -r '.params.sensitive  | select(.!=null)' < $payload)

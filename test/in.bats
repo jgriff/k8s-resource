@@ -21,8 +21,8 @@ source_in() {
     export -f log
 
     # mock kubectl to return our expected response
-    local expected_kubectl_args="--server=$url --token=$token --certificate-authority=$ca_file \
-            get $resource_types --all-namespaces --sort-by={.metadata.resourceVersion} -o json"
+    local expected_kubectl_args="--server=$source_url --token=$source_token --certificate-authority=$source_ca_file \
+            get $source_resource_types --all-namespaces --sort-by={.metadata.resourceVersion} -o json"
     stub kubectl "$expected_kubectl_args : cat $BATS_TEST_DIRNAME/fixtures/$kubectl_response.json"
 
     # source the sut
@@ -94,6 +94,110 @@ teardown() {
 
     # but it should be empty
     refute [ -s "$retrieved_resource/resource.json" ]
+}
+
+@test "[in] GH-1: echos fetched resource content by default" {
+    source_in
+
+    target_dir=$BATS_TMPDIR
+
+    # write out a dummy resource file that we expect our sut to log (publicly)
+    jq -n "{
+        apiVersion: \"v1\",
+        kind: \"Pod\",
+        metadata: {
+            name: \"some-pod-7f56d7f494-d69k2\",
+        },
+    }" > $target_dir/resource.json
+
+    # capture the args passed to the log() function
+    output=""
+    log() { output+="$@"; }
+    export -f log
+
+    # run it!
+    emitResult
+
+    # assert that we logged the content of the resource file publicly (-p)
+    assert_output --partial "-p $(cat $target_dir/resource.json)"
+}
+
+gh1SensitiveFalse() {
+    target_dir=$BATS_TMPDIR
+
+    # write out a dummy resource file to use as input
+    jq -n "{
+        apiVersion: \"v1\",
+        kind: \"Pod\",
+        metadata: {
+            name: \"some-pod-7f56d7f494-d69k2\",
+        },
+    }" > $target_dir/resource.json
+
+    # capture the args passed to the log() function
+    output=""
+    log() { output+="$@"; }
+    export -f log
+
+    # run it!
+    emitResult
+
+    # assert that we logged the content of the resource file publicly (-p)
+    assert_output --partial "-p $(cat $target_dir/resource.json)"
+}
+
+gh1SensitiveTrue() {
+    target_dir=$BATS_TMPDIR
+
+    # write out a dummy resource file to use as input
+    jq -n "{
+        apiVersion: \"v1\",
+        kind: \"Pod\",
+        metadata: {
+            name: \"some-pod-7f56d7f494-d69k2\",
+        },
+    }" > $target_dir/resource.json
+
+    # capture the args passed to the log() function
+    output=""
+    log() { output+="$@"; }
+    export -f log
+
+    # run it!
+    emitResult
+
+    # assert that we did NOT log the content of the resource file at all
+    refute_output --partial "$(cat $target_dir/resource.json)"
+}
+
+@test "[in] GH-1: source config 'sensitive=false' enables echo'ing fetched resource" {
+    source_in "stdin-source-sensitive-false"
+    gh1SensitiveFalse
+}
+
+@test "[in] GH-1: source config 'sensitive=true' disables echo'ing fetched resource" {
+    source_in "stdin-source-sensitive-true"
+    gh1SensitiveTrue
+}
+
+@test "[in] GH-1: params config 'sensitive=false' enables echo'ing fetched resource" {
+    source_in "stdin-params-sensitive-false"
+    gh1SensitiveFalse
+}
+
+@test "[in] GH-1: params config 'sensitive=true' disables echo'ing fetched resource" {
+    source_in "stdin-params-sensitive-true"
+    gh1SensitiveTrue
+}
+
+@test "[in] GH-1: source config 'sensitive=true' and params config overrides with 'sensitive=false' then the resource is echo'd" {
+    source_in "stdin-source-sensitive-true-params-sensitive-false"
+    gh1SensitiveFalse
+}
+
+@test "[in] GH-1: source config 'sensitive=false' and params config overrides with 'sensitive=true' then the resource is NOT echo'd" {
+    source_in "stdin-source-sensitive-false-params-sensitive-true"
+    gh1SensitiveTrue
 }
 
 @test "[in] e2e in" {

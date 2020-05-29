@@ -18,7 +18,7 @@ A Concourse [resource](https://resource-types.concourse-ci.org/) for retrieving 
 * `filter`: _Optional_. Can contain any/all of the following criteria:
   * `name`: Matches against the `metadata.name` of the resource.  Supports both literal (`my-ns-1`) and regular expressions (`"my-ns-[0-9]*$"`).
   * `olderThan`: Time in seconds that the `metadata.creationTimestamp` must be older than.
-
+* `sensitive`: _Optional._  If `true`, the resource content will be considered sensitive and not show up in the logs or Concourse UI.  Can be overridden as a param to each `get` step. Default is `false`.
 ## Behavior
 
 ### `check`: Check for new k8s resource(s)
@@ -49,6 +49,10 @@ Retrieve the single resource as JSON (`-o json`) and writes it to a file `resour
   ...
 }
 ```
+
+#### Parameters
+
+* `sensitive`: _Optional._  Overrides the source configuration's value for this particular `get`.
 
 ### `out`: no-op (currently)
 
