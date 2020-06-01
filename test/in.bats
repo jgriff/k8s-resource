@@ -218,3 +218,12 @@ gh1SensitiveTrue() {
     source_in "stdin-source-sensitive-false-params-sensitive-true"
     gh1SensitiveTrue
 }
+
+@test "[in] GH-7 ignores requests without a uid/resourceVersion in the 'version' info given on stdin" {
+    source_in "stdin-source-with-version-no-uid-resourceVersion"
+
+    output=$(extractVersion 5>&1)
+
+    # should emit the version it was given, back out
+    assert_equal "$(jq -r '.version.something' <<< "$output")" 'else'
+}

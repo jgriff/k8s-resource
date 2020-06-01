@@ -22,13 +22,24 @@ extractVersion() {
     log "\n--> extracting version..."
     version=$(jq -r '.version // ""' < $payload)
     log "Was given version: $version"
-    uid=$(jq -r '.uid // ""' <<< $version)
-    resourceVersion=$(jq -r '.resourceVersion // ""' <<< $version)
+    uid=$(jq -r '.uid | select(.!=null)' <<< $version)
+    resourceVersion=$(jq -r '.resourceVersion | select(.!=null)' <<< $version)
+
+    if [ -z "$uid" ] || [ -z "$resourceVersion" ]; then
+        log "${red}Warning:${reset}  Both 'version.uid' and 'version.resourceVersion' are required to fetch the resource!  If this is the implicit 'get' after a 'put', then this is expected (and can be ignored)."
+        jq -n "{ \"version\": $version }" >&5
+        exit 0
+    fi
 }
 
 fetchResource() {
+    if notSet namespace_arg; then
+        log -p "${red}Warning:${reset}  No namespace configured!  Defaulting to ${blue}--all-namespaces${reset}."
+        namespace_arg="--all-namespaces"
+    fi
+
     # fetch the requested resource
-    log -p "\nRetrieving ${cyan}${source_resource_types}${reset} resource ${yellow}'$uid'${reset} at version ${yellow}'$resourceVersion'${reset} from cluster at ${blue}'${source_url}'${reset} in namespace ${blue}'${source_namespace:---all-namespaces}'${reset}..."
+    log -p "\nRetrieving ${cyan}${source_resource_types}${reset} resource ${yellow}'$uid'${reset} at version ${yellow}'$resourceVersion'${reset} from cluster at ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset}..."
     kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file get $source_resource_types $namespace_arg --sort-by={.metadata.resourceVersion} -o json \
           | jq --arg uid $uid --arg resourceVersion $resourceVersion '.items[] | select((.metadata.uid == $uid and .metadata.resourceVersion == $resourceVersion))' \
      > $target_dir/resource.json

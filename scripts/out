@@ -7,15 +7,39 @@ exec 1>&2 # redirect all output to stderr for logging
 
 main() {
     log "\n\n--[OUT]-------------------------"
+    sourcesDirectory $1
+    invokeKubectl
     emitResult
 }
 
+sourcesDirectory() {
+    sources_dir=$1
+    log "\n--> Sources directory is: $sources_dir"
+    cd $sources_dir
+}
+
+invokeKubectl() {
+    if notSet namespace_arg; then
+        log -p "${red}Warning:${reset}  No namespace configured!"
+    fi
+
+    log -p "\nInvoking ${cyan}kubectl${reset} with args ${yellow}'${params_kubectl}'${reset} targeting cluster at ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset}..."
+    kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file ${namespace_arg} ${params_kubectl}
+}
+
 emitResult() {
-    jq -n "{
-      version: {
-        not: \"supported\"
-      }
-    }" >&5
+    jq  --arg kubectl "$params_kubectl" \
+        --arg namespace "$(namespace)" \
+        --arg server "$source_url" \
+        -n '{
+      "version": {
+        "kubectl": $kubectl
+      },
+      "metadata": [
+        { "name": "namespace", "value": $namespace },
+        { "name": "server", "value": $server }
+      ]
+    }' >&5
 }
 
 if [ "${BASH_SOURCE[0]}" == "${0}" ]; then

@@ -1,0 +1,5 @@
+{
+  "params": {
+    "kubectl": "apply -k overlays/prod"
+  }
+}

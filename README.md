@@ -55,9 +55,22 @@ Retrieve the single resource as JSON (`-o json`) and writes it to a file `resour
 
 * `sensitive`: _Optional._  Overrides the source configuration's value for this particular `get`.
 
-### `out`: no-op (currently)
+### `out`: Execute a `kubectl` command
+
+General purpose execution of `kubectl` with args provided as a param to `put`.
+
+#### Parameters
+
+* `kubectl`: _Required._ The args to pass directly to `kubectl`. \
+    **Note:** The `--server`, `--token`, `--certificate-authority` and `--namespace` will all be implicitly included in
+    the command based on the `source` configuration.
+* `namespace`: _Optional._  Overrides the source configuration's value for this particular `put` step.  
+    If it is not configured here nor in the `source`, the namespace `default` is used.
+
 
 ## Example
+
+### `get` Resources
 
 ```yaml
 resource_types:
@@ -80,7 +93,7 @@ resources:
         olderThan: 86400
 
 jobs:
-  - name: view-expired
+  - name: view-expired-namespaces
     plan:
       - get: expired-namespace
         version: every
@@ -109,4 +122,94 @@ and then the `take-a-look` task echoes the contents of the retrieved resource fi
 
 **NOTE:** Be sure to include `version: every` in your `get` step so you get _every_ k8s resource that matches your query.
 Otherwise, Concourse will only trigger on the _latest_ resource to be emitted (the last one in the list that comes back from the query).
-  
+
+### `put` Resources
+
+The pipeline below demonstrates using the `put` operation to deploy a resource file `deploy.yaml` from a git repo `my-k8s-repo` (config not shown).
+
+```yaml
+resource_types:
+  - name: k8s-resource
+    type: docker-image
+    source:
+      repository: jgriff/k8s-resource
+
+resources:
+  - name: k8s
+    type: k8s-resource
+    icon: kubernetes
+    source:
+      url: ((k8s-server))
+      token: ((k8s-token))
+      certificate_authority: ((k8s-ca))
+
+jobs:
+  - name: deploy-prod
+    plan:
+      - get: my-k8s-repo
+        trigger: true
+      - put: k8s
+        params:
+          kubectl: apply -f my-k8s-repo/deploy.yaml
+          namespace: prod
+```
+
+
+
+### `get` and `put` Resources
+
+The pipeline below demonstrates using both `get` and `put` in the same pipeline.
+
+⚠️ **Warning:** Don't use the same `k8s-resource` instance for **both** `get` and `put` operations!  The `put` step
+emits a meaningless version (it's just the `kubectl` command that was executed).  The problem is Concourse will include
+that (meaningless) version in the version history for the resource.  It will then be offered to your `get` step which
+will be unable to retrieve the nonsensical version and then fail.
+
+So the best way to deal with this is to use one resource type for the resource(s) you are `get`'ing, and another general
+purpose resource for `put`'ing things.
+
+Here's an example that combines the previous 2 examples into a single pipeline that watches for expired namespaces, and
+then deletes them.
+
+```yaml
+---
+k8s-resource-source-config: &k8s-resource-source-config
+  url: ((k8s-server))
+  token: ((k8s-token))
+  certificate_authority: ((k8s-ca))
+
+resource_types:
+  - name: k8s-resource
+    type: docker-image
+    source:
+      repository: jgriff/k8s-resource
+
+resources:
+  - name: k8s
+    type: k8s-resource
+    icon: kubernetes
+    source:
+      << : *k8s-resource-source-config
+
+  - name: expired-namespace
+    type: k8s-resource
+    icon: kubernetes
+    source:
+      << : *k8s-resource-source-config
+      resource_types: namespaces
+      filter:
+        name: "my-ns-[0-9]*$"
+        olderThan: 86400
+
+jobs:
+  - name: delete-expired-namespaces
+    plan:
+      - get: expired-namespace
+        version: every
+        trigger: true
+      - load_var: expired-namespace-resource
+        file:     expired-namespace/resource.json
+      - put: k8s
+        params:
+          kubectl: delete namespace ((.:expired-namespace-resource.metadata.name))
+```
