@@ -96,6 +96,25 @@ teardown() {
     refute [ -s "$retrieved_resource/resource.json" ]
 }
 
+@test "[in] e2e in" {
+    source_in
+
+    output=$(main 5>&1)
+
+    # should emit the version 'uid' and 'resourceVersion' attributes
+    assert_equal "$(jq -r '.version | length' <<< "$output")" '2'
+    assert_equal "$(jq -r '.version.uid' <<< "$output")" 'cee83946-92c3-11e9-a784-3497f601230d'
+    assert_equal "$(jq -r '.version.resourceVersion' <<< "$output")" '6988465'
+
+    # and include the resource's metadata
+    assert_equal "$(jq -r '.metadata | length' <<< "$output")" '5'
+    assert_equal "$(jq -r '. | any(.metadata[]; .name == "creationTimestamp" and .value == "2019-06-19T18:55:29Z")' <<< "$output")" 'true'
+    assert_equal "$(jq -r '. | any(.metadata[]; .name == "name" and .value == "namespace-1")' <<< "$output")" 'true'
+    assert_equal "$(jq -r '. | any(.metadata[]; .name == "resourceVersion" and .value == "6988465")' <<< "$output")" 'true'
+    assert_equal "$(jq -r '. | any(.metadata[]; .name == "selfLink" and .value == "/api/v1/namespaces/namespace-1")' <<< "$output")" 'true'
+    assert_equal "$(jq -r '. | any(.metadata[]; .name == "uid" and .value == "cee83946-92c3-11e9-a784-3497f601230d")' <<< "$output")" 'true'
+}
+
 @test "[in] GH-1: echos fetched resource content by default" {
     source_in
 
@@ -198,23 +217,4 @@ gh1SensitiveTrue() {
 @test "[in] GH-1: source config 'sensitive=false' and params config overrides with 'sensitive=true' then the resource is NOT echo'd" {
     source_in "stdin-source-sensitive-false-params-sensitive-true"
     gh1SensitiveTrue
-}
-
-@test "[in] e2e in" {
-    source_in
-
-    output=$(main 5>&1)
-
-    # should emit the version 'uid' and 'resourceVersion' attributes
-    assert_equal "$(jq -r '.version | length' <<< "$output")" '2'
-    assert_equal "$(jq -r '.version.uid' <<< "$output")" 'cee83946-92c3-11e9-a784-3497f601230d'
-    assert_equal "$(jq -r '.version.resourceVersion' <<< "$output")" '6988465'
-
-    # and include the resource's metadata
-    assert_equal "$(jq -r '.metadata | length' <<< "$output")" '5'
-    assert_equal "$(jq -r '. | any(.metadata[]; .name == "creationTimestamp" and .value == "2019-06-19T18:55:29Z")' <<< "$output")" 'true'
-    assert_equal "$(jq -r '. | any(.metadata[]; .name == "name" and .value == "namespace-1")' <<< "$output")" 'true'
-    assert_equal "$(jq -r '. | any(.metadata[]; .name == "resourceVersion" and .value == "6988465")' <<< "$output")" 'true'
-    assert_equal "$(jq -r '. | any(.metadata[]; .name == "selfLink" and .value == "/api/v1/namespaces/namespace-1")' <<< "$output")" 'true'
-    assert_equal "$(jq -r '. | any(.metadata[]; .name == "uid" and .value == "cee83946-92c3-11e9-a784-3497f601230d")' <<< "$output")" 'true'
 }
