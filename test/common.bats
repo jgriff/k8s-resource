@@ -4,7 +4,7 @@ load '/opt/bats/addons/bats-support/load.bash'
 load '/opt/bats/addons/bats-assert/load.bash'
 
 run_with() {
-    . "$SUT_SCRIPTS_DIR/common" <<< "$(<$BATS_TEST_DIRNAME/fixtures/$1.json)"
+    . "$SUT_ASSETS_DIR/common" <<< "$(<$BATS_TEST_DIRNAME/fixtures/$1.json)"
 }
 
 @test "[common] extracts 'source.url' as variable 'source_url'" {

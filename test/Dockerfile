@@ -15,8 +15,8 @@ RUN git clone https://github.com/bats-core/bats-assert.git /opt/bats/addons/bats
     git clone https://github.com/bats-core/bats-support.git /opt/bats/addons/bats-support && \
     git clone https://github.com/jasonkarns/bats-mock.git /opt/bats/addons/bats-mock
 
-# location of the scripts to test
-ENV SUT_SCRIPTS_DIR=/opt/resource
+# location of the assets to test
+ENV SUT_ASSETS_DIR=/opt/resource
 
 # add our tests
 ADD *.bats /opt/resource-tests/

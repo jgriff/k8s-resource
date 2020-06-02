@@ -1,6 +1,6 @@
 # Testing
 
-The [`check`](../scripts/check), [`in`](../scripts/in) and [`out`](../scripts/out) scripts are all written in bash, and
+The [`check`](../assets/check), [`in`](../assets/in) and [`out`](../assets/out) are all written in bash, and
 tested with [bats](https://github.com/bats-core/bats-core).  The `.bats` test scripts are all located in this directory.
 
 ## Running the Tests

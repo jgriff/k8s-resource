@@ -14,7 +14,7 @@ source_check() {
     kubectl_response=${2:-"kubectl-response"}
 
     # source the common script
-    source "$SUT_SCRIPTS_DIR/common" <<< "$(<$BATS_TEST_DIRNAME/fixtures/$stdin_payload.json)"
+    source "$SUT_ASSETS_DIR/common" <<< "$(<$BATS_TEST_DIRNAME/fixtures/$stdin_payload.json)"
 
     # stub the log function
     #log() { echo "$@"; } # use this during development to see log output
@@ -27,7 +27,7 @@ source_check() {
     stub kubectl "$expected_kubectl_args : cat $BATS_TEST_DIRNAME/fixtures/$kubectl_response.json"
 
     # source the sut
-    source "$SUT_SCRIPTS_DIR/check"
+    source "$SUT_ASSETS_DIR/check"
 }
 
 teardown() {

@@ -177,7 +177,7 @@ runTests() {
 
 openShellSession() {
     echo "${icon_shell_session} ${blue}Opening${reset} shell session in ${yellow}${TEST_IMAGE}${reset} container ..."
-    docker run --rm -it -v ${PROJECT_HOME}:/code -w /code -e SUT_SCRIPTS_DIR=/code/scripts --entrypoint /bin/bash ${TEST_IMAGE}
+    docker run --rm -it -v ${PROJECT_HOME}:/code -w /code -e SUT_ASSETS_DIR=/code/assets --entrypoint /bin/bash ${TEST_IMAGE}
     TEST_RESULT=shell
 }
 
