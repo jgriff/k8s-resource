@@ -1,6 +1,7 @@
 # k8s-resource
 
-A Concourse [resource](https://resource-types.concourse-ci.org/) for retrieving resources from a kubernetes cluster.
+A Concourse [resource](https://resource-types.concourse-ci.org/) for retrieving resources from a kubernetes cluster, along
+with a general purpose `put` for running any `kubectl` command.
 
 ## Source Configuration
 
@@ -15,7 +16,9 @@ A Concourse [resource](https://resource-types.concourse-ci.org/) for retrieving 
   ```
 
 * `resource_types`: _Optional_. Comma separated list of resource type(s) to retrieve (defaults to just `pod`).
-* `namespace`: _Optional_. The namespace to restrict the query to.  Defaults to all namespaces (`--all-namespaces`).
+* `namespace`: _Optional_. The namespace to restrict the query to. \
+  For `check`/`get`, this will default to all namespaces (`--all-namespaces`). \
+  For `put`, this will default to remaining unset (not specified), but can be overridden with a step param (see [below](#out-execute-a-kubectl-command)).
 * `filter`: _Optional_. Can contain any/all of the following criteria:
   * `name`: Matches against the `metadata.name` of the resource.  Supports both literal (`my-ns-1`) and regular expressions (`"my-ns-[0-9]*$"`).
   * `olderThan`: Time in seconds that the `metadata.creationTimestamp` must be older than.
@@ -64,8 +67,7 @@ General purpose execution of `kubectl` with args provided as a param to `put`.
 * `kubectl`: _Required._ The args to pass directly to `kubectl`. \
     **Note:** The `--server`, `--token`, `--certificate-authority` and `--namespace` will all be implicitly included in
     the command based on the `source` configuration.
-* `namespace`: _Optional._  Overrides the source configuration's value for this particular `put` step.  
-    If it is not configured here nor in the `source`, the namespace `default` is used.
+* `namespace`: _Optional._  Overrides the source configuration's value for this particular `put` step.
 
 
 ## Example
