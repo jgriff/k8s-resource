@@ -82,6 +82,11 @@ isSensitive() {
     return 1;
 }
 
+namespace() {
+    # strip the leading '-n ' (if present)
+    echo ${namespace_arg} | sed 's/-n //g'
+}
+
 payload=$(mktemp /tmp/resource-in.XXXXXX)
 cat > $payload <&0
 
@@ -97,12 +102,14 @@ source_sensitive=$(jq -r '.source.sensitive | select(.!=null)' < $payload)
 source_ca_file=$(mktemp /tmp/resource-ca_file.XXXXXX)
 echo "$source_ca" > "$source_ca_file"
 
-# craft a var for specifying the namespace
-if isSet source_namespace; then
-    namespace_arg="-n $source_namespace"
-else
-    namespace_arg="--all-namespaces"
-fi
-
 # params config
+params_kubectl=$(jq -r '.params.kubectl  | select(.!=null)' < $payload)
+params_namespace=$(jq -r '.params.namespace  | select(.!=null)' < $payload)
 params_sensitive=$(jq -r '.params.sensitive  | select(.!=null)' < $payload)
+
+# configure the 'namespace_arg', with the params having highest precedence
+if isSet params_namespace; then
+    namespace_arg="-n $params_namespace"
+elif isSet source_namespace; then
+    namespace_arg="-n $source_namespace"
+fi
