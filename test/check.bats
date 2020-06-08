@@ -58,60 +58,96 @@ teardown() {
     queryForVersions
 
     assert_equal $(jq length <<< "$new_versions") 3
-    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-1'
-    assert_equal "$(jq -r '.[1].name' <<< "$new_versions")" 'namespace-2'
-    assert_equal "$(jq -r '.[2].name' <<< "$new_versions")" 'namespace-other'
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'namespace-other'
 }
 
 @test "[check] filter by name matches exact strings" {
     source_check "stdin-source-filter-name"
 
     new_versions='[
-        { "name": "namespace-1" },
-        { "name": "namespace-2" },
-        { "name": "namespace-other" }
+        {
+            "metadata": {
+                "name": "namespace-1"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-other"
+            }
+        }
     ]'
 
     filterByName
 
     # then only names exactly matching remain
     assert_equal $(jq length <<< "$new_versions") 1
-    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-2'
 }
 
 @test "[check] filter by name matches regex" {
     source_check "stdin-source-filter-name-regex"
 
     new_versions='[
-        { "name": "namespace-1" },
-        { "name": "namespace-2" },
-        { "name": "namespace-other" }
+        {
+            "metadata": {
+                "name": "namespace-1"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-other"
+            }
+        }
     ]'
 
     filterByName
 
     # then only names matching the regex remain
     assert_equal $(jq length <<< "$new_versions") 2
-    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-1'
-    assert_equal "$(jq -r '.[1].name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-2'
 }
 
 @test "[check] filter by name not configured" {
     source_check "stdin-source-empty"
 
     new_versions='[
-        { "name": "namespace-1" },
-        { "name": "namespace-2" },
-        { "name": "namespace-other" }
+        {
+            "metadata": {
+                "name": "namespace-1"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-other"
+            }
+        }
     ]'
 
     filterByName
 
     # then our 'new_versions' is left unchanged
     assert_equal $(jq length <<< "$new_versions") 3
-    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-1'
-    assert_equal "$(jq -r '.[1].name' <<< "$new_versions")" 'namespace-2'
-    assert_equal "$(jq -r '.[2].name' <<< "$new_versions")" 'namespace-other'
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'namespace-other'
 }
 
 @test "[check] filter by olderThan" {
@@ -123,16 +159,22 @@ teardown() {
 
     new_versions="[
         {
-            \"name\": \"namespace-1\",
-            \"creationTimestamp\": \"$now\"
+            \"metadata\": {
+                \"name\": \"namespace-1\",
+                \"creationTimestamp\": \"$now\"
+            }
         },
         {
-            \"name\": \"namespace-2\",
-            \"creationTimestamp\": \"$hourAgo\"
+            \"metadata\": {
+                \"name\": \"namespace-2\",
+                \"creationTimestamp\": \"$hourAgo\"
+            }
         },
         {
-            \"name\": \"namespace-3\",
-            \"creationTimestamp\": \"$dayAgo\"
+            \"metadata\": {
+                \"name\": \"namespace-3\",
+                \"creationTimestamp\": \"$dayAgo\"
+            }
         }
     ]"
 
@@ -140,47 +182,68 @@ teardown() {
 
     # then we only have namespaces older than our criteria (24 hours)
     assert_equal $(jq length <<< "$new_versions") 1
-    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-3'
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-3'
 }
 
 @test "[check] filter by olderThan not configured" {
     source_check "stdin-source-empty"
 
-    new_versions='[
-        { "name": "namespace-1" },
-        { "name": "namespace-2" },
-        { "name": "namespace-other" }
-    ]'
+    new_versions="[
+        {
+            \"metadata\": {
+                \"name\": \"namespace-1\",
+                \"creationTimestamp\": \"$now\"
+            }
+        },
+        {
+            \"metadata\": {
+                \"name\": \"namespace-2\",
+                \"creationTimestamp\": \"$hourAgo\"
+            }
+        },
+        {
+            \"metadata\": {
+                \"name\": \"namespace-3\",
+                \"creationTimestamp\": \"$dayAgo\"
+            }
+        }
+    ]"
 
     filterByCreationOlderThan
 
     # then our 'new_versions' is left unchanged
     assert_equal $(jq length <<< "$new_versions") 3
-    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-1'
-    assert_equal "$(jq -r '.[1].name' <<< "$new_versions")" 'namespace-2'
-    assert_equal "$(jq -r '.[2].name' <<< "$new_versions")" 'namespace-other'
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'namespace-3'
 }
 
 @test "[check] pare down version info and emit only uid/resourceVersion" {
     source_check
 
-    new_versions="[
+    new_versions='[
         {
-            \"uid\": \"uid-1\",
-            \"foo\": \"bar-1\",
-            \"resourceVersion\": \"resourceVersion-1\"
+            "metadata": {
+                "uid": "uid-1",
+                "foo": "bar-1",
+                "resourceVersion": "resourceVersion-1"
+            }
         },
         {
-            \"uid\": \"uid-2\",
-            \"foo\": \"bar-2\",
-            \"resourceVersion\": \"resourceVersion-2\"
+            "metadata": {
+                "uid": "uid-2",
+                "foo": "bar-2",
+                "resourceVersion": "resourceVersion-2"
+            }
         },
         {
-            \"uid\": \"uid-3\",
-            \"foo\": \"bar-3\",
-            \"resourceVersion\": \"resourceVersion-3\"
+            "metadata": {
+                "uid": "uid-3",
+                "foo": "bar-3",
+                "resourceVersion": "resourceVersion-3"
+            }
         }
-    ]"
+    ]'
 
     pareDownVersionInfo
 
@@ -304,7 +367,7 @@ teardown() {
     queryForVersions
 
     assert_equal $(jq length <<< "$new_versions") 3
-    assert_equal "$(jq -r '.[0].name' <<< "$new_versions")" 'namespace-1'
-    assert_equal "$(jq -r '.[1].name' <<< "$new_versions")" 'namespace-2'
-    assert_equal "$(jq -r '.[2].name' <<< "$new_versions")" 'namespace-other'
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'namespace-other'
 }

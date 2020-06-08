@@ -27,7 +27,7 @@ queryForVersions() {
         namespace_arg="--all-namespaces"
     fi
     log "\n--> querying k8s cluster ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset} for ${yellow}'${source_resource_types}' resources..."
-    new_versions=$(kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file  get $source_resource_types $namespace_arg --sort-by='{.metadata.resourceVersion}' -o json | jq '[.items[].metadata]' )
+    new_versions=$(kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file  get $source_resource_types $namespace_arg --sort-by='{.metadata.resourceVersion}' -o json | jq '[.items[]]' )
     log "$new_versions"
 }
 
@@ -35,7 +35,7 @@ filterByName() {
     FILTER_NAME=$(jq -r '.source.filter.name // ""' < $payload)
     if [ ! -z "$FILTER_NAME" ]; then
         log "\n--> filtering by name '$FILTER_NAME'..."
-        new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq --arg FILTER_NAME $FILTER_NAME -r '[.[] | select(.name | test($FILTER_NAME))]')
+        new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq --arg FILTER_NAME $FILTER_NAME -r '[.[] | select(.metadata.name | test($FILTER_NAME))]')
         log "$new_versions"
     else
         log "\n--> name filter not configured, skipping...."
@@ -46,7 +46,7 @@ filterByCreationOlderThan() {
     FILTER_OLDER_THAN=$(jq -r '.source.filter.olderThan // ""' < $payload)
     if [ ! -z "$FILTER_OLDER_THAN" ]; then
         log "\n--> filtering by creation timestamp older than '$FILTER_OLDER_THAN'..."
-        new_versions=$(echo $new_versions  | tr '\r\n' ' ' | jq --argjson MAX_AGE $(( $(date +%s) - $FILTER_OLDER_THAN)) -r '[.[] | select(.creationTimestamp | fromdate | tonumber | select(. < $MAX_AGE)) ]')
+        new_versions=$(echo $new_versions  | tr '\r\n' ' ' | jq --argjson MAX_AGE $(( $(date +%s) - $FILTER_OLDER_THAN)) -r '[.[] | select(.metadata.creationTimestamp | fromdate | tonumber | select(. < $MAX_AGE)) ]')
         log "$new_versions"
     else
         log "\n--> creation timestamp (older than) filter not configured, skipping...."
@@ -55,7 +55,7 @@ filterByCreationOlderThan() {
 
 pareDownVersionInfo() {
     log "\n--> pairing down version metadata to just uid/version..."
-    new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq 'map({uid,resourceVersion})')
+    new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq '[.[].metadata] | map({uid,resourceVersion})')
     log "$new_versions"
 }
 
