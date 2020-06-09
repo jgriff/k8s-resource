@@ -371,3 +371,109 @@ teardown() {
     assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-2'
     assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'namespace-other'
 }
+
+@test "[check] GH-9 filter by phases matches exact strings" {
+    source_check "stdin-source-filter-phases"
+
+    new_versions='[
+        {
+            "metadata": {
+                "name": "namespace-1"
+            },
+            "status": {
+                "phase": "Active"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-3"
+            },
+            "status": {
+                "phase": "Foo"
+            }
+        }
+    ]'
+
+    filterByPhases
+
+    # then only names exactly matching remain
+    assert_equal $(jq length <<< "$new_versions") 2
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-3'
+}
+
+@test "[check] GH-9 filter by phases not configured" {
+    source_check "stdin-source-empty"
+
+    new_versions='[
+        {
+            "metadata": {
+                "name": "namespace-1"
+            },
+            "status": {
+                "phase": "Active"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-3"
+            },
+            "status": {
+                "phase": "Foo"
+            }
+        }
+    ]'
+
+    filterByPhases
+
+    # then only names exactly matching remain
+    assert_equal $(jq length <<< "$new_versions") 3
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'namespace-3'
+}
+
+@test "[check] GH-9 filter by phases handles duplicates" {
+    source_check "stdin-source-filter-phases-duplicates"
+
+    new_versions='[
+        {
+            "metadata": {
+                "name": "namespace-1"
+            },
+            "status": {
+                "phase": "Active"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-3"
+            },
+            "status": {
+                "phase": "Foo"
+            }
+        }
+    ]'
+
+    filterByPhases
+
+    # then only names exactly matching remain
+    assert_equal $(jq length <<< "$new_versions") 2
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-3'
+}

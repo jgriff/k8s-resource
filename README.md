@@ -16,12 +16,35 @@ with a general purpose `put` for running any `kubectl` command.
   ```
 
 * `resource_types`: _Optional_. Comma separated list of resource type(s) to retrieve (defaults to just `pod`).
+  ```yaml
+    resource_types: deployment,service,pod
+  ```
 * `namespace`: _Optional_. The namespace to restrict the query to. \
   For `check`/`get`, this will default to all namespaces (`--all-namespaces`). \
   For `put`, this will default to remaining unset (not specified), but can be overridden with a step param (see [below](#out-execute-a-kubectl-command)).
 * `filter`: _Optional_. Can contain any/all of the following criteria:
   * `name`: Matches against the `metadata.name` of the resource.  Supports both literal (`my-ns-1`) and regular expressions (`"my-ns-[0-9]*$"`).
-  * `olderThan`: Time in seconds that the `metadata.creationTimestamp` must be older than.
+    ```yaml
+    source:
+      filter:
+        name: "my-ns-[0-9]*$"
+    ```
+  * `olderThan`: Time in seconds that the `metadata.creationTimestamp` must be older than (ex: `86400` for 24hrs).
+    ```yaml
+    source:
+      filter:
+        olderThan: 86400
+    ```
+  * `phases`: List of `phase` value(s) the resource must match at least one of.  This varies depending on the resource.
+    For example, a [pod's status](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) can be
+    one of `Pending`, `Running`, `Succeeded`, `Failed` or `Unknown`.  To retrieve only `Failed` or `Unknown` pods:
+    ```yaml
+    source:
+      filter:
+        phases: 
+          - Failed
+          - Unknown
+    ```
 * `sensitive`: _Optional._  If `true`, the resource content will be considered sensitive and not show up in the logs or Concourse UI.  Can be overridden as a param to each `get` step. Default is `false`.
 ## Behavior
 
@@ -202,6 +225,7 @@ resources:
       filter:
         name: "my-ns-[0-9]*$"
         olderThan: 86400
+        phases: [Active]
 
 jobs:
   - name: delete-expired-namespaces

@@ -11,6 +11,7 @@ main() {
     queryForVersions
     filterByName
     filterByCreationOlderThan
+    filterByPhases
     pareDownVersionInfo
     emitResult
 }
@@ -26,7 +27,7 @@ queryForVersions() {
         log "${red}Warning:${reset}  No namespace configured!  Defaulting to ${blue}--all-namespaces${reset}."
         namespace_arg="--all-namespaces"
     fi
-    log "\n--> querying k8s cluster ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset} for ${yellow}'${source_resource_types}' resources..."
+    log "\n--> querying k8s cluster ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset} for ${yellow}'${source_resource_types}'${reset} resources..."
     new_versions=$(kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file  get $source_resource_types $namespace_arg --sort-by='{.metadata.resourceVersion}' -o json | jq '[.items[]]' )
     log "$new_versions"
 }
@@ -50,6 +51,20 @@ filterByCreationOlderThan() {
         log "$new_versions"
     else
         log "\n--> creation timestamp (older than) filter not configured, skipping...."
+    fi
+}
+
+filterByPhases() {
+    FILTER_PHASES=$(jq -r '.source.filter.phases // ""' < $payload)
+    if [ ! -z "$FILTER_PHASES" ]; then
+        # remove any duplicates
+        FILTER_PHASES=$(echo "$FILTER_PHASES" | jq 'unique')
+
+        log "\n--> filtering by phases '$FILTER_PHASES'..."
+        new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq --argjson FILTER_PHASES "$FILTER_PHASES" -r '[.[] | select(.status.phase as $candidate | $FILTER_PHASES[] as $required | $candidate == $required)]')
+        log "$new_versions"
+    else
+        log "\n--> phases filter not configured, skipping...."
     fi
 }
 
