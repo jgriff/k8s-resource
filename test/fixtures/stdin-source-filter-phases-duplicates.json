@@ -1,0 +1,7 @@
+{
+  "source": {
+    "filter": {
+      "phases": ["Active", "Foo", "Active"]
+    }
+  }
+}
