@@ -35,7 +35,7 @@ with a general purpose `put` for running any `kubectl` command.
       filter:
         olderThan: 86400
     ```
-  * `phases`: List of `phase` value(s) the resource must match at least one of.  This varies depending on the resource.
+  * `phases`: List of `status.phase` value(s) the resource must match at least one of.  This varies depending on the resource.
     For example, a [pod's status](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) can be
     one of `Pending`, `Running`, `Succeeded`, `Failed` or `Unknown`.  To retrieve only `Failed` or `Unknown` pods:
     ```yaml
@@ -190,8 +190,8 @@ emits a meaningless version (it's just the `kubectl` command that was executed).
 that (meaningless) version in the version history for the resource.  It will then be offered to your `get` step which
 will be unable to retrieve the nonsensical version and then fail.
 
-So the best way to deal with this is to use one resource type for the resource(s) you are `get`'ing, and another general
-purpose resource for `put`'ing things.
+So the best way to deal with this is to use one resource instance for the resources you are `get`'ing, and another
+instance for general purpose `put`'ing things.
 
 Here's an example that combines the previous 2 examples into a single pipeline that watches for expired namespaces, and
 then deletes them.
