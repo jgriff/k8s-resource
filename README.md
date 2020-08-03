@@ -1,5 +1,7 @@
 # k8s-resource
 
+![pulls](https://img.shields.io/docker/pulls/jgriff/k8s-resource)
+
 A Concourse [resource](https://resource-types.concourse-ci.org/) for retrieving resources from a kubernetes cluster, along
 with a general purpose `put` for running any `kubectl` command.
 
