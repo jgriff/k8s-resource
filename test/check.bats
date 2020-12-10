@@ -528,7 +528,7 @@ teardown() {
         }
     ]'
 
-    filterByJQ
+    filterByJQExpressions
 
     # then only names exactly matching remain
     assert_equal $(jq length <<< "$new_versions") 3
