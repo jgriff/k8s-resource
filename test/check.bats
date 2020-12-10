@@ -477,3 +477,62 @@ teardown() {
     assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
     assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-3'
 }
+
+@test "[check] filter by jq matches queries" {
+    source_check "stdin-source-filter-jq"
+
+    new_versions='[
+        {
+            "metadata": {
+                "name": "namespace-1"
+            },
+            "spec": {
+                "somekey": "somevalue",
+                "number1": 4,
+                "number2": 4
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-3"
+            },
+            "status": {
+                "anynumber": 5
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-4"
+            },
+            "status": {
+                "anynumber": 2
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-5"
+            },
+            "status": {
+                "number1": 666
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-6"
+            }
+        }
+    ]'
+
+    filterByJQ
+
+    # then only names exactly matching remain
+    assert_equal $(jq length <<< "$new_versions") 3
+    assert_equal $(jq -r '[.[] | if .metadata.name == "namespace-2" then .metadata.name else "" end ] | join("")' <<< "$new_versions") 'namespace-2'
+    assert_equal $(jq -r '[.[] | if .metadata.name == "namespace-1" then .metadata.name else "" end ] | join("")' <<< "$new_versions") 'namespace-1'
+    assert_equal $(jq -r '[.[] | if .metadata.name == "namespace-3" then .metadata.name else "" end ] | join("")' <<< "$new_versions") 'namespace-3'
+}
