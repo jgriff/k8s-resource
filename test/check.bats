@@ -536,3 +536,17 @@ teardown() {
     assert_equal $(jq -r '[.[] | if .metadata.name == "namespace-1" then .metadata.name else "" end ] | join("")' <<< "$new_versions") 'namespace-1'
     assert_equal $(jq -r '[.[] | if .metadata.name == "namespace-3" then .metadata.name else "" end ] | join("")' <<< "$new_versions") 'namespace-3'
 }
+
+@test "[check] filter by jq expressions handles empty payload" {
+    source_check "stdin-source-empty.json"
+
+    new_versions=''
+
+    filterByJQExpressions
+    assert_equal "$new_versions" ""
+
+    # again, but with filter present and empty - that is not "jq" key
+    echo '{ "source": {"filter": {}} }' > $payload
+    filterByJQExpressions
+    assert_equal "$new_versions" ""
+}

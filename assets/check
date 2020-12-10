@@ -70,7 +70,7 @@ filterByPhases() {
 }
 
 filterByJQExpressions() {
-    FILTER_QUERIES=$(jq -r '.source.filter.jq | join(",") // ""' < $payload)
+    FILTER_QUERIES=$(jq -r '.source.filter.jq // [] | join(",") // ""' < $payload)
     if [ ! -z "$FILTER_QUERIES" ]; then
         log "\n--> filtering by JQ querie(s)..."
         new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq -r "[.[] | select( $FILTER_QUERIES ) ] | unique")
