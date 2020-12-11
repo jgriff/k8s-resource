@@ -71,10 +71,10 @@ filterByPhases() {
 
 filterByJQExpressions() {
     FILTER_OPERATOR=$(jq -r '.source.filter.jq_operator // ","' < $payload)
-    FILTER_QUERIES=$(jq -r ".source.filter.jq // [] | join(\" ${FILTER_OPERATOR} \") // \"\"" < $payload)
-    if [ ! -z "$FILTER_QUERIES" ]; then
-        log "\n--> filtering by JQ querie(s)..."
-        new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq -r "[.[] | select( $FILTER_QUERIES ) ] | unique")
+    FILTER_QUERY=$(jq -r ".source.filter.jq // [] | join(\" ${FILTER_OPERATOR} \") // \"\"" < $payload)
+    if [ ! -z "$FILTER_QUERY" ]; then
+        log "\n--> filtering by JQ query: '$FILTER_QUERY'"
+        new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq -r "[.[] | select( $FILTER_QUERY ) ] | unique")
         log "$new_versions"
     else
         log "\n--> jq filter not configured, skipping...."
