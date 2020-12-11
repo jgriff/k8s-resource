@@ -550,3 +550,38 @@ teardown() {
     filterByJQExpressions
     assert_equal "$new_versions" ""
 }
+
+@test "[check] filter by jq expressions with operator" {
+    source_check "stdin-source-filter-jq-operator"
+
+    new_versions='[
+        {
+            "metadata": {
+                "name": "namespace-1",
+                "number": 333
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            },
+            "spec": {
+                "number": 333
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-3",
+                "number": 666
+            },
+            "spec": {
+                "number": 666
+            }
+        }
+    ]'
+
+    filterByJQExpressions
+
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-3'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'null'
+}
