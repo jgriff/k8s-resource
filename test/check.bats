@@ -577,11 +577,21 @@ teardown() {
             "spec": {
                 "number": 666
             }
+        },
+        {
+            "metadata": {
+                "name": "namespace-4",
+                "number": 777
+            },
+            "spec": {
+                "number": 777
+            }
         }
     ]'
 
     filterByJQExpressions
 
     assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-3'
-    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'null'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-4'
+    assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'null'
 }
