@@ -77,9 +77,10 @@ filterByJQExpressions() {
         log "\n--> filtering by JQ query: '$FILTER_QUERY'"
         if [ -n "$FILTER_TRANSFORM" ]; then
            FILTER_TRANSFORM="| $FILTER_TRANSFORM"
-           log "\n    with transformation: '$FILTER_TRANSFORM'"
+           log "\n       with transformation: '$FILTER_TRANSFORM'"
         fi
-        new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq -r "[.[] | select( $FILTER_QUERY ) ] | unique $FILTER_TRANSFORM")
+        new_versions=$(echo "$new_versions" | tr '\r\n' ' ')
+        new_versions=$(echo "$new_versions" | jq -r "[.[] | select( $FILTER_QUERY ) ] | unique $FILTER_TRANSFORM")
         log "$new_versions"
     else
         log "\n--> jq filter not configured, skipping...."
