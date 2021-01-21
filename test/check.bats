@@ -595,3 +595,46 @@ teardown() {
     assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-4'
     assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'null'
 }
+
+@test "[check] filter by jq expressions with transformation" {
+    source_check "stdin-source-filter-jq-transformation"
+
+    new_versions='[
+        {
+            "metadata": {
+                "name": "namespace-1",
+                "number": 111
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            },
+            "spec": {
+                "number": 222
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-3",
+                "number": 333
+            },
+            "spec": {
+                "number": 333
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-4",
+                "number": 444
+            },
+            "spec": {
+                "number": 444
+            }
+        }
+    ]'
+
+    filterByJQExpressions
+
+    assert_equal "$new_versions" '777'
+}
