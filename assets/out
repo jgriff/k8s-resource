@@ -9,6 +9,7 @@ main() {
     log "\n\n--[OUT]-------------------------"
     sourcesDirectory $1
     invokeKubectl
+    setImages
     emitResult
 }
 
@@ -25,6 +26,27 @@ invokeKubectl() {
 
     log -p "\nInvoking ${cyan}kubectl${reset} with args ${yellow}'${params_kubectl}'${reset} targeting cluster at ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset}..."
     kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file ${namespace_arg} ${params_kubectl}
+}
+
+setImages() {
+    IMAGES=$(jq -r '.params.set_images // []' < $payload)
+
+    if notSet namespace_arg; then
+        log -p "${red}Warning:${reset}  No namespace configured!"
+    fi
+
+    args="--server=$source_url --token=$source_token --certificate-authority=$source_ca_file ${namespace_arg}"
+    log -p "\nInvoking ${cyan}kubectl${reset} with args ${yellow}'${args}'${reset} targeting cluster at ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset}..."
+
+    if [ ! -z "$IMAGES" ]; then
+        log "\n--> setting images from params..."
+        echo $IMAGES | jq -r '.[] | [.controller, .container, .image] | @tsv' |
+            while IFS=$'\t' read -r controller container image; do
+                kubectl ${args} set image $controller $container=$image
+            done
+    else
+        log "\n--> no images to set specified, skipping...."
+    fi
 }
 
 emitResult() {

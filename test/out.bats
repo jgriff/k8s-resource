@@ -108,3 +108,19 @@ source_out() {
 
     assert_equal "$(jq -r '. | any(.metadata[]; .name == "namespace" and .value == "")' <<< "$output")" 'true'
 }
+
+@test "[out] generates kubectl set image commands from params" {
+    source_out "stdin-source-namespace-params-set_images"
+
+    # mock kubectl to not call the real program... 
+    stub kubectl : 'echo "stuff kubectl may have sent"'
+
+    output=$(setImages)
+
+    # ... since setImages() calls kubectl in a loop there is no way to actually
+    # have the commands checked by the unstub tool (no way I can think of, that is)
+    unstub kubectl || true
+
+    # should emit the output of kubectl
+    assert_equal "$output" 'stuff kubectl may have sent'
+}

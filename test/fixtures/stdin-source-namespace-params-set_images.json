@@ -1,0 +1,16 @@
+{
+  "source": {
+    "url": "https://some-server:8443",
+    "token": "a-token",
+    "certificate_authority": "a-certificate",
+    "resource_types": "namespaces",
+    "namespace": "my-namespace"
+  },
+  "params": {
+    "set_images": [
+       {"controller": "rc/some-controller",  "container": "container1", "image": "image1"},
+       {"controller": "rc/some-controller",  "container": "container2", "image": "image2"},
+       {"controller": "rc/other-controller", "container": "container1", "image": "image1"}
+    ]
+  }
+}
