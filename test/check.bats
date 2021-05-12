@@ -636,5 +636,7 @@ teardown() {
 
     filterByJQExpressions
 
-    assert_equal "$new_versions" '777'
+    assert_equal "$(jq -r '.[0].metadata.uid' <<< "$new_versions")" 'uuuu-iiii-dddd'
+    assert_equal "$(jq -r '.[0].metadata.resourceVersion' <<< "$new_versions")" '12345'
+    assert_equal "$(jq -r '.[0].metadata.sum' <<< "$new_versions")" '777'
 }

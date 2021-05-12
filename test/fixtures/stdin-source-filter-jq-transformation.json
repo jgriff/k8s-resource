@@ -6,7 +6,7 @@
          "(.metadata.number==111)",
          "(.metadata.number==333 and .spec.number==333)"
       ],
-      "jq_transform": "[.[] | map(.) | .[] | .number ] | add"
+      "jq_transform": "[.[] | map(.) | .[] | .number ] | add as $sum | [{metadata: {uid: \"uuuu-iiii-dddd\", resourceVersion: \"12345\", sum: $sum}}]"
     }
   }
 }
