@@ -5,6 +5,8 @@ set -e
 exec 5>&1 # make stdout available as fd 5 for the result
 exec 1>&2 # redirect all output to stderr for logging
 
+declare -A report
+
 main() {
     log "\n\n--[OUT]-------------------------"
     sourcesDirectory $1
@@ -20,12 +22,17 @@ sourcesDirectory() {
 }
 
 invokeKubectl() {
-    if notSet namespace_arg; then
-        log -p "${red}Warning:${reset}  No namespace configured!"
-    fi
+    if [ -n "$params_kubectl" ]; then
+        if notSet namespace_arg; then
+            log -p "${red}Warning:${reset}  No namespace configured!"
+        fi
 
-    log -p "\nInvoking ${cyan}kubectl${reset} with args ${yellow}'${params_kubectl}'${reset} targeting cluster at ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset}..."
-    kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file ${namespace_arg} ${params_kubectl}
+        log -p "\nInvoking ${cyan}kubectl${reset} with args ${yellow}'${params_kubectl}'${reset} targeting cluster at ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset}..."
+        kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file ${namespace_arg} ${params_kubectl}
+        report[kubectl]="${params_kubectl}"
+    else
+        log "\n--> no kubectl parameters specified, skipping...."
+    fi
 }
 
 setImages() {
@@ -40,23 +47,35 @@ setImages() {
 
     if [ ! -z "$IMAGES" ]; then
         log "\n--> setting images from params..."
+        changes=0
         echo $IMAGES | jq -r '.[] | [.controller, .container, .image] | @tsv' |
             while IFS=$'\t' read -r controller container image; do
-                kubectl ${args} set image $controller $container=$image
+                kubectl $args set image $controller $container=$image && changes=$((changes+=1))
             done
+
+        report[set_images]="changed $changes images"
     else
         log "\n--> no images to set specified, skipping...."
     fi
 }
 
 emitResult() {
-    jq  --arg kubectl "$params_kubectl" \
+    if [ "${#report[@]}" -eq 0 ]; then
+        # no key(s) assumes kubectl is what was called
+        version="{\"kubectl\": \"$params_kubectl\"}"
+    else
+        # join the report to a JSON structure being the "out" version
+        for key in "${!report[@]}"; do
+            version=", \"${key}\": \"${report[$key]}\"";
+        done
+        version="{ ${version:2} }"  # chop ', ' at beginning
+    fi
+
+    jq  --argjson version "$version" \
         --arg namespace "$(namespace)" \
         --arg server "$source_url" \
         -n '{
-      "version": {
-        "kubectl": $kubectl
-      },
+      "version": $version,
       "metadata": [
         { "name": "namespace", "value": $namespace },
         { "name": "server", "value": $server }
