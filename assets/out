@@ -43,14 +43,16 @@ setImages() {
     fi
 
     args="--server=$source_url --token=$source_token --certificate-authority=$source_ca_file ${namespace_arg}"
-    log -p "\nInvoking ${cyan}kubectl${reset} with args ${yellow}'${args}'${reset} targeting cluster at ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset}..."
+    log -p "\nInvoking ${cyan}kubectl ... set image ...${reset} targeting cluster at ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset}..."
 
     if [ ! -z "$IMAGES" ]; then
         log "\n--> setting images from params..."
         changes=0
         echo $IMAGES | jq -r '.[] | [.controller, .container, .image] | @tsv' |
             while IFS=$'\t' read -r controller container image; do
-                kubectl $args set image $controller $container=$image && changes=$((changes+=1))
+                out=$(kubectl $args set image $controller $container=$image 2>&1)
+                [ -n "$out" ] && echo "set ${blue}${container}${reset} to ${yellow}${image}${reset}: ${out}"
+                changes=$((changes+=1))
             done
 
         report[set_images]="changed $changes images"

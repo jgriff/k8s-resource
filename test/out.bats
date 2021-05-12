@@ -122,5 +122,5 @@ source_out() {
     unstub kubectl || true
 
     # should emit the output of kubectl
-    assert_equal "$output" 'stuff kubectl may have sent'
+    assert_equal "$output" "set ${blue}container2${reset} to ${yellow}image2${reset}: stuff kubectl may have sent"
 }
