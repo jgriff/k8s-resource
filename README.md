@@ -47,6 +47,36 @@ with a general purpose `put` for running any `kubectl` command.
           - Failed
           - Unknown
     ```
+  * `jq`: Run a custom query on the JSON data retured by `kubectl`. This is advanced usage and requires
+    good knowledge about the [jq tool](https://stedolan.github.io/jq/) and the Kubernetes API.
+    Best approach to writing such queries is to experiement directly like so: `kubectl ... get ... -o json | jq <query>`.
+    Once that works one or more queries can be configured in the resource as shown below:
+    ```yaml
+    source:
+      filter:
+        jq:
+          - '.status.readyReplicas == 1'
+          - '.metadata.name == "<my-controller-name>"'
+        jq_operator: 'and'
+        jq_transform: ''
+    ```
+    This example will join two queries with logical `and` which ensures the named controller object will
+    only be matched when 1 replica is active, that is when the application in the pod has completed its startup.
+
+    `jq_operator` defaults to `,` - the *basic identity operator*. It can be any filter joining operation `jq`
+    understands, including `+` and `-`. See [jq Manual: Basic Filters](https://stedolan.github.io/jq/manual/#Basicfilters).
+
+    `jq_transform` specifies another query where the result of the first query (or set of queries, specified in `jq:`
+    parameter) is passed to. Default is '' (empty, *do nothing*).
+    It can be used to alter the structure of the matched json or even produce a completely new json. The interactive
+    equivalent to this is:
+    `kubectl ... get ... -o json | jq "[.[] | select( $MATCH_QUERY ) ] | unique $TRANSFORM_QUERY"`.
+
+    **NOTE**: whatever the transformation is, it should include contain the `metadata: {uid: "...", resourceVersion: "..."}` structure, because
+    this is reported to Concourse as the result of the check. `test/fixtures/stdin-source-filter-jq-transformation.json` is an example on how to do this.
+    The *empty result* `[]` appears to not be considered a new version by Concourse, meaning it does not trigger a job - the transform query can make
+    use of that in a condition.
+
 * `sensitive`: _Optional._  If `true`, the resource content will be considered sensitive and not show up in the logs or Concourse UI.  Can be overridden as a param to each `get` step. Default is `false`.
 ## Behavior
 

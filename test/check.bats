@@ -477,3 +477,166 @@ teardown() {
     assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
     assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-3'
 }
+
+@test "[check] filter by jq matches queries" {
+    source_check "stdin-source-filter-jq"
+
+    new_versions='[
+        {
+            "metadata": {
+                "name": "namespace-1"
+            },
+            "spec": {
+                "somekey": "somevalue",
+                "number1": 4,
+                "number2": 4
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-3"
+            },
+            "status": {
+                "anynumber": 5
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-4"
+            },
+            "status": {
+                "anynumber": 2
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-5"
+            },
+            "status": {
+                "number1": 666
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-6"
+            }
+        }
+    ]'
+
+    filterByJQExpressions
+
+    # then only names exactly matching remain
+    assert_equal $(jq length <<< "$new_versions") 3
+    assert_equal $(jq -r '[.[] | if .metadata.name == "namespace-2" then .metadata.name else "" end ] | join("")' <<< "$new_versions") 'namespace-2'
+    assert_equal $(jq -r '[.[] | if .metadata.name == "namespace-1" then .metadata.name else "" end ] | join("")' <<< "$new_versions") 'namespace-1'
+    assert_equal $(jq -r '[.[] | if .metadata.name == "namespace-3" then .metadata.name else "" end ] | join("")' <<< "$new_versions") 'namespace-3'
+}
+
+@test "[check] filter by jq expressions handles empty payload" {
+    source_check "stdin-source-empty.json"
+
+    new_versions=''
+
+    filterByJQExpressions
+    assert_equal "$new_versions" ""
+
+    # again, but with filter present and empty - that is not "jq" key
+    echo '{ "source": {"filter": {}} }' > $payload
+    filterByJQExpressions
+    assert_equal "$new_versions" ""
+}
+
+@test "[check] filter by jq expressions with operator" {
+    source_check "stdin-source-filter-jq-operator"
+
+    new_versions='[
+        {
+            "metadata": {
+                "name": "namespace-1",
+                "number": 333
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            },
+            "spec": {
+                "number": 333
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-3",
+                "number": 666
+            },
+            "spec": {
+                "number": 666
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-4",
+                "number": 777
+            },
+            "spec": {
+                "number": 777
+            }
+        }
+    ]'
+
+    filterByJQExpressions
+
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-3'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-4'
+    assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'null'
+}
+
+@test "[check] filter by jq expressions with transformation" {
+    source_check "stdin-source-filter-jq-transformation"
+
+    new_versions='[
+        {
+            "metadata": {
+                "name": "namespace-1",
+                "number": 111
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            },
+            "spec": {
+                "number": 222
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-3",
+                "number": 333
+            },
+            "spec": {
+                "number": 333
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-4",
+                "number": 444
+            },
+            "spec": {
+                "number": 444
+            }
+        }
+    ]'
+
+    filterByJQExpressions
+
+    assert_equal "$(jq -r '.[0].metadata.uid' <<< "$new_versions")" 'uuuu-iiii-dddd'
+    assert_equal "$(jq -r '.[0].metadata.resourceVersion' <<< "$new_versions")" '12345'
+    assert_equal "$(jq -r '.[0].metadata.sum' <<< "$new_versions")" '777'
+}

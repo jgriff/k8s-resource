@@ -1,0 +1,11 @@
+{
+  "source": {
+    "filter": {
+      "jq_operator": "and",
+      "jq": [
+         ".spec.number",
+         ".metadata.number"
+      ]
+    }
+  }
+}

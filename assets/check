@@ -12,6 +12,7 @@ main() {
     filterByName
     filterByCreationOlderThan
     filterByPhases
+    filterByJQExpressions
     pareDownVersionInfo
     emitResult
 }
@@ -65,6 +66,24 @@ filterByPhases() {
         log "$new_versions"
     else
         log "\n--> phases filter not configured, skipping...."
+    fi
+}
+
+filterByJQExpressions() {
+    FILTER_OPERATOR=$(jq -r '.source.filter.jq_operator // ","' < $payload)
+    FILTER_TRANSFORM=$(jq -r '.source.filter.jq_transform // ""' < $payload)
+    FILTER_QUERY=$(jq -r ".source.filter.jq // [] | join(\" ${FILTER_OPERATOR} \") // \"\"" < $payload)
+    if [ ! -z "$FILTER_QUERY" ]; then
+        log "\n--> filtering by JQ query: '$FILTER_QUERY'"
+        if [ -n "$FILTER_TRANSFORM" ]; then
+           FILTER_TRANSFORM="| $FILTER_TRANSFORM"
+           log "\n       with transformation: '$FILTER_TRANSFORM'"
+        fi
+        new_versions=$(echo "$new_versions" | tr '\r\n' ' ')
+        new_versions=$(echo "$new_versions" | jq -r "[.[] | select( $FILTER_QUERY ) ] | unique $FILTER_TRANSFORM")
+        log "$new_versions"
+    else
+        log "\n--> jq filter not configured, skipping...."
     fi
 }
 

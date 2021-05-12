@@ -1,0 +1,11 @@
+{
+  "source": {
+    "filter": {
+      "jq": [
+         ".status.anynumber >= 3",
+         ".metadata.name == \"namespace-2\"",
+         ".spec.number1 != null and .spec.number2 != null and .spec.number1 == .spec.number2"
+      ]
+    }
+  }
+}
