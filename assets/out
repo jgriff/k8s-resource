@@ -47,15 +47,28 @@ setImages() {
 
     if [ ! -z "$IMAGES" ]; then
         log "\n--> setting images from params..."
+        images=$(mktemp /tmp/resource-in.images.XXXXXX)
         changes=0
-        echo $IMAGES | jq -r '.[] | [.controller, .container, .image] | @tsv' |
-            while IFS=$'\t' read -r controller container image; do
-                out=$(kubectl $args set image $controller $container=$image 2>&1)
-                [ -n "$out" ] && echo "set ${blue}${container}${reset} to ${yellow}${image}${reset}: ${out}"
+        kubectl_failed=0
+        set +e  # avoid exit on kubectl failure so errors show up, then ...
+        echo $IMAGES | jq -r '.[] | [.controller, .container, .image] | @tsv' > $images
+        while IFS=$'\t' read -r controller container image; do
+            out=$(kubectl $args set image $controller $container=$image)
+            [ $? -ne 0 ] && kubectl_failed=1
+            if [ -n "$out" ]; then
+                echo "set ${blue}${container}${reset} to ${yellow}${image}${reset}: ${out}"
                 changes=$((changes+=1))
-            done
+            fi
+        done < $images
+        set -e
 
-        report[set_images]="changed $changes images"
+        if [ $kubectl_failed -eq 0 ]; then
+            report[set_images]="updated $changes images"
+        else
+            # ... fail the job on any kubectl failure
+            echo 'failed to update (some) images, aborting!'
+            exit 1
+        fi
     else
         log "\n--> no images to set specified, skipping...."
     fi
