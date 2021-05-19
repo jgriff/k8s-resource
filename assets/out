@@ -53,7 +53,7 @@ setImages() {
         set +e  # avoid exit on kubectl failure so errors show up, then ...
         echo $IMAGES | jq -r '.[] | [.controller, .container, .image] | @tsv' > $images
         while IFS=$'\t' read -r controller container image; do
-            out=$(kubectl $args set image $controller $container=$image)
+            out=$(kubectl $args set image $controller $container=$image 2>&1)
             [ $? -ne 0 ] && kubectl_failed=1
             if [ -n "$out" ]; then
                 echo "set ${blue}${container}${reset} to ${yellow}${image}${reset}: ${out}"

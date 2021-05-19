@@ -83,17 +83,61 @@ Retrieve the single resource as JSON (`-o json`) and writes it to a file `resour
 
 * `sensitive`: _Optional._  Overrides the source configuration's value for this particular `get`.
 
-### `out`: Execute a `kubectl` command
+### `out`: Execute `kubectl` commands
 
 General purpose execution of `kubectl` with args provided as a param to `put`.
 
+Additional parameters exist for more specific uses of kubectl functionality. Choose what fits the task best.
+
+**Note:** at least one parameter should be given, otherwise the put step does nothing.
+
 #### Parameters
 
-* `kubectl`: _Required._ The args to pass directly to `kubectl`. \
+* `kubectl`: _Optional._ The args to pass directly to `kubectl`. \
     **Note:** The `--server`, `--token`, `--certificate-authority` and `--namespace` will all be implicitly included in
     the command based on the `source` configuration.
 * `namespace`: _Optional._  Overrides the source configuration's value for this particular `put` step.
+* `set_images`: _Optional._ Changes the container image of one (or more) pod template(s) at runtime. This feature is a bulk operation for doing `kubectl set image ...` on many objects. Example:
+  ```yaml
+  jobs:
+    - name: set-image-job
+      plan:
+        - put: my-k8s-resource
+          params:
+            set_images:
+              - controller: Deployment/my-database
+                container: mysql
+                image: docker.io/mysql:5.7
+  ```
+  This will expect a `Deployment` object named `my-database` to exist in the namespace configured for `my-k8s-resource`, which is to have container named `mysql`. The image of this container will be changed to `docker.io/mysql:5.7`. Supposed the image was `docker.io/mysql:5.6` before, this will trigger the `Deployment` object to start a rollover to the new version.
 
+  `set_images` actually takes an array of `{controller, container, image}` values for mass-changing objects in one `put` step. See this advanced example below. It employs the [docker-image-resource](https://github.com/concourse/docker-image-resource) and [load_var](https://concourse-ci.org/jobs.html#load-var-step) to feed the SHA hash of each docker image to the `Deployment`:
+  ```yaml
+  jobs:
+    - name: set-sha-job
+      plan:
+        - get: my-docker-image-A
+          params:
+            skip_download: true
+        - load_var: sha_my-docker-image-A
+          file: my-docker-image-A/digest
+          reveal: true
+        - get: my-docker-image-B
+          params:
+            skip_download: true
+        - load_var: sha_my-docker-image-B
+          file: my-docker-image-B/digest
+          reveal: true
+        - put: my-k8s-resource
+          params:
+            set_images:
+              - controller: Deployment/my-pod
+                container: my-app
+                image: my.registry.host/my-docker-image-A@((.:sha_my-docker-image-A))
+              - controller: Deployment/my-other-pod
+                container: my-other-app
+                image: my.registry.host/my-docker-image-B@((.:sha_my-docker-image-B))
+  ```
 
 ## Example
 
