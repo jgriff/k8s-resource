@@ -24,7 +24,12 @@ source_check() {
     # mock kubectl to return our expected response
     local expected_kubectl_args="--server=$source_url --token=$source_token --certificate-authority=$source_ca_file \
             get $source_resource_types $expected_namespace_arg --sort-by={.metadata.resourceVersion} -o json"
-    stub kubectl "$expected_kubectl_args : cat $BATS_TEST_DIRNAME/fixtures/$kubectl_response.json"
+
+    if [ $kubectl_response == "FAIL" ]; then
+        stub kubectl "$expected_kubectl_args : exit 1"
+    else
+        stub kubectl "$expected_kubectl_args : cat $BATS_TEST_DIRNAME/fixtures/$kubectl_response.json"
+    fi
 
     # source the sut
     source "$SUT_ASSETS_DIR/check"
@@ -639,4 +644,11 @@ teardown() {
     assert_equal "$(jq -r '.[0].metadata.uid' <<< "$new_versions")" 'uuuu-iiii-dddd'
     assert_equal "$(jq -r '.[0].metadata.resourceVersion' <<< "$new_versions")" '12345'
     assert_equal "$(jq -r '.[0].metadata.sum' <<< "$new_versions")" '777'
+}
+
+@test "[check] GH-12 exits with error if kubectl fails" {
+    source_check "stdin-source" "FAIL"
+
+    run queryForVersions
+    assert_failure
 }
