@@ -24,12 +24,13 @@ extractPreviousVersion() {
 }
 
 queryForVersions() {
+    set -o pipefail
     if notSet namespace_arg; then
         log "${red}Warning:${reset}  No namespace configured!  Defaulting to ${blue}--all-namespaces${reset}."
         namespace_arg="--all-namespaces"
     fi
     log "\n--> querying k8s cluster ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset} for ${yellow}'${source_resource_types}'${reset} resources..."
-    new_versions=$(kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file  get $source_resource_types $namespace_arg --sort-by='{.metadata.resourceVersion}' -o json | jq '[.items[]]' )
+    new_versions=$(kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file  get $source_resource_types $namespace_arg --sort-by='{.metadata.resourceVersion}' -o json | jq '[.items[]]' ) || exit $1
     log "$new_versions"
 }
 
