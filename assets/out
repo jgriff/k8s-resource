@@ -24,7 +24,7 @@ invokeKubectl() {
     fi
 
     log -p "\nInvoking ${cyan}kubectl${reset} with args ${yellow}'${params_kubectl}'${reset} targeting cluster at ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset}..."
-    kubectl --server=$source_url --token=$source_token --certificate-authority=$source_ca_file ${namespace_arg} ${params_kubectl}
+    kubectl --server=$source_url --token=$source_token ${certificate_arg} ${namespace_arg} ${params_kubectl}
 }
 
 emitResult() {
