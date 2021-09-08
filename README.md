@@ -16,7 +16,6 @@ with a general purpose `put` for running any `kubectl` command.
       ...
       -----END CERTIFICATE-----
   ```
-
 * `resource_types`: _Optional_. Comma separated list of resource type(s) to retrieve (defaults to just `pod`).
   ```yaml
     resource_types: deployment,service,pod
@@ -47,37 +46,50 @@ with a general purpose `put` for running any `kubectl` command.
           - Failed
           - Unknown
     ```
-  * `jq`: Run a custom query on the JSON data retured by `kubectl`. This is advanced usage and requires
-    good knowledge about the [jq tool](https://stedolan.github.io/jq/) and the Kubernetes API.
-    Best approach to writing such queries is to experiement directly like so: `kubectl ... get ... -o json | jq <query>`.
-    Once that works one or more queries can be configured in the resource as shown below:
+  * `jq`: Apply any other custom filter(s) on the JSON returned by `kubectl`.
+    For example, to retrieve only resources whose image comes from the registry `registry.acme.io`:
     ```yaml
     source:
       filter:
         jq:
-          - '.status.readyReplicas == 1'
-          - '.metadata.name == "<my-controller-name>"'
-        jq_operator: 'and'
-        jq_transform: ''
+          - '.spec.containers[] | .image | startswith("registry.acme.io")'
     ```
-    This example will join two queries with logical `and` which ensures the named controller object will
-    only be matched when 1 replica is active, that is when the application in the pod has completed its startup.
-
-    `jq_operator` defaults to `,` - the *basic identity operator*. It can be any filter joining operation `jq`
-    understands, including `+` and `-`. See [jq Manual: Basic Filters](https://stedolan.github.io/jq/manual/#Basicfilters).
-
-    `jq_transform` specifies another query where the result of the first query (or set of queries, specified in `jq:`
-    parameter) is passed to. Default is '' (empty, *do nothing*).
-    It can be used to alter the structure of the matched json or even produce a completely new json. The interactive
-    equivalent to this is:
-    `kubectl ... get ... -o json | jq "[.[] | select( $MATCH_QUERY ) ] | unique $TRANSFORM_QUERY"`.
-
-    **NOTE**: whatever the transformation is, it should include contain the `metadata: {uid: "...", resourceVersion: "..."}` structure, because
-    this is reported to Concourse as the result of the check. `test/fixtures/stdin-source-filter-jq-transformation.json` is an example on how to do this.
-    The *empty result* `[]` appears to not be considered a new version by Concourse, meaning it does not trigger a job - the transform query can make
-    use of that in a condition.
+    We can add multiple filters that are (by default) "OR'd" together.  For example, to also look for _any_ resource with a container that has restarted more than `10` times:
+    ```yaml
+    source:
+      filter:
+        jq:
+          - '.spec.containers[] | .image | startswith("registry.acme.io")'
+          - '.status.containerStatuses[] | .restartCount > 10'
+    ```
+  
+    :bulb: **Tip**: _This is advanced usage and requires good knowledge about [jq](https://stedolan.github.io/jq/) and the Kubernetes API.  Best approach to writing such queries is to experiment directly with `kubectl` and `jq`_:
+    ```shell
+    kubectl ... get ... -o json | jq <query>
+    ```
+    When at least one `jq` filter is present, the following additional options can be configured (optionally):
+    * `jq_operator`:  Defaults to `,` - the *basic identity operator* which combines them as "OR". It can be any filter joining operation `jq` understands, including `+` and `-` (see [jq Manual: Basic Filters](https://stedolan.github.io/jq/manual/#Basicfilters)).
+      Building on the example above, if we wanted to constrain the matches to only resources that matched _both_ filters _together_, we can use the `and` operator:
+      ```yaml
+      source:
+        filter:
+          jq:
+            - '.spec.containers[] | .image | startswith("registry.acme.io")'
+            - '.status.containerStatuses[] | .restartCount > 10'
+          jq_operator: 'and'
+      ```
+    * `jq_transform`:  Defaults to empty (_do nothing_) - specifies a final JSON transform of the result(s) matched by the list of `jq` queries.
+      It can be used to alter the structure of the matched json or even produce a completely new json. 
+      The interactive equivalent to this is:
+      ```shell
+      kubectl ... get ... -o json | jq "[.[] | select( $MATCH_QUERY ) ] | unique $TRANSFORM_QUERY"
+      ```
+      :warning: **Warning**:  Use with caution.  Whatever the transformation is, it should also include the `metadata: {uid: "...", resourceVersion: "..."}` structure, because this is reported to Concourse as the result of the check.
+      See [`test/fixtures/stdin-source-filter-jq-transformation.json`](test/fixtures/stdin-source-filter-jq-transformation.json) for an example.
+      The _empty result_ `[]` appears to not be considered a new version by Concourse (does not trigger a job) - the transform query can make use of that in a condition where it does not want to produce a new version.
 
 * `sensitive`: _Optional._  If `true`, the resource content will be considered sensitive and not show up in the logs or Concourse UI.  Can be overridden as a param to each `get` step. Default is `false`.
+
 ## Behavior
 
 ### `check`: Check for new k8s resource(s)
@@ -100,7 +112,7 @@ from the first initial `check`, Concourse would only trigger on the last version
 ### `in`: Retrieve the k8s resource
 
 Retrieve the single resource as JSON (`-o json`) and writes it to a file `resource.json`.
-```
+```json
 {
   "apiVersion": "v1",
   "kind": "...",
