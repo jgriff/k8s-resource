@@ -73,7 +73,7 @@ filterByPhases() {
 filterByJQExpressions() {
     FILTER_OPERATOR=$(jq -r '.source.filter.jq_operator // ","' < $payload)
     FILTER_TRANSFORM=$(jq -r '.source.filter.jq_transform // ""' < $payload)
-    FILTER_QUERY=$(jq -r ".source.filter.jq // [] | join(\" ${FILTER_OPERATOR} \") // \"\"" < $payload)
+    FILTER_QUERY=$(jq -r ".source.filter.jq // [] | map(\"(\" + . + \")\") | join(\" ${FILTER_OPERATOR} \") // \"\"" < $payload)
     if [ ! -z "$FILTER_QUERY" ]; then
         log "\n--> filtering by JQ query: '$FILTER_QUERY'"
         if [ -n "$FILTER_TRANSFORM" ]; then

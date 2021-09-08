@@ -646,6 +646,51 @@ teardown() {
     assert_equal "$(jq -r '.[0].metadata.sum' <<< "$new_versions")" '777'
 }
 
+@test "[check] filter by jq expressions with transformation (no parens)" {
+    source_check "stdin-source-filter-jq-transformation-no-parens"
+
+    new_versions='[
+        {
+            "metadata": {
+                "name": "namespace-1",
+                "number": 111
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            },
+            "spec": {
+                "number": 222
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-3",
+                "number": 333
+            },
+            "spec": {
+                "number": 333
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-4",
+                "number": 444
+            },
+            "spec": {
+                "number": 444
+            }
+        }
+    ]'
+
+    filterByJQExpressions
+
+    assert_equal "$(jq -r '.[0].metadata.uid' <<< "$new_versions")" 'uuuu-iiii-dddd'
+    assert_equal "$(jq -r '.[0].metadata.resourceVersion' <<< "$new_versions")" '12345'
+    assert_equal "$(jq -r '.[0].metadata.sum' <<< "$new_versions")" '777'
+}
+
 @test "[check] GH-12 exits with error if kubectl fails" {
     source_check "stdin-source" "FAIL"
 
