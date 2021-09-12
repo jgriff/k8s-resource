@@ -9,13 +9,17 @@ with a general purpose `put` for running any `kubectl` command.
 
 * `url`: _Required_. The kubernetes server URL, e.g. `"https://my-cluster:8443"`.
 * `token`: _Required_.  Authorization token for the api server.
-* `certificate_authority`: _Required_. The certificate authority for the api server.
+* `certificate_authority`: _Required_. The certificate authority for the api server. \
+  This configuration will be overridden if `insecure_skip_tls_verify` is set to `true`.
   ```yaml
     certificate_authority: |
       -----BEGIN CERTIFICATE-----
       ...
       -----END CERTIFICATE-----
   ```
+* `insecure_skip_tls_verify`: _Optional_. If `true`, skips the validity check of the server's certificate. Default is `false`. \
+  Overrides the `certificate_authority` configuration if `true`. \
+  ⚠️ **Warning**:  Use with caution. This makes the HTTPS connection insecure.
 * `resource_types`: _Optional_. Comma separated list of resource type(s) to retrieve (defaults to just `pod`).
   ```yaml
     resource_types: deployment,service,pod
