@@ -1,0 +1,12 @@
+{
+  "source": {
+    "url": "https://some-server:8443",
+    "token": "a-token",
+    "certificate_authority": "a-certificate",
+    "insecure_skip_tls_verify": true,
+    "resource_types": "namespaces"
+  }      ,
+  "params": {
+    "kubectl": "apply -k overlays/prod"
+  }
+}

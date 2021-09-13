@@ -97,6 +97,7 @@ source_ca=$(jq -r '.source.certificate_authority // ""' < $payload)
 source_resource_types=$(jq -r '.source.resource_types // "pod"' < $payload)
 source_namespace=$(jq -r '.source.namespace | select(.!=null)' < $payload)
 source_sensitive=$(jq -r '.source.sensitive | select(.!=null)' < $payload)
+source_insecure_skip_tls_verify=$(jq -r '.source.insecure_skip_tls_verify // false' < $payload)
 
 # write the ca file out (have to pass a file ref to kubectl)
 source_ca_file=$(mktemp /tmp/resource-ca_file.XXXXXX)
@@ -112,4 +113,10 @@ if isSet params_namespace; then
     namespace_arg="-n $params_namespace"
 elif isSet source_namespace; then
     namespace_arg="-n $source_namespace"
+fi
+
+if isTrue source_insecure_skip_tls_verify; then
+    certificate_arg="--insecure-skip-tls-verify"
+else
+    certificate_arg="--certificate-authority=$source_ca_file"
 fi

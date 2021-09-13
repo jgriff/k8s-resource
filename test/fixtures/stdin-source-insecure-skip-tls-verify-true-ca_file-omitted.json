@@ -1,0 +1,8 @@
+{
+  "source": {
+    "url": "https://some-server:8443",
+    "token": "a-token",
+    "insecure_skip_tls_verify": true,
+    "resource_types": "namespaces"
+  }
+}

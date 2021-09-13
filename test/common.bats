@@ -31,6 +31,12 @@ run_with() {
     assert_equal $(head -n 1 $source_ca_file) 'a-certificate'
 }
 
+@test "[common] extracts 'source.insecure_skip_tls_verify' as variable 'source_insecure_skip_tls_verify'" {
+    run_with "stdin-source-insecure-skip-tls-verify-true"
+    assert isSet source_insecure_skip_tls_verify
+    assert_equal "$source_insecure_skip_tls_verify" 'true'
+}
+
 @test "[common] extracts 'source.resource_types' as variable 'source_resource_types'" {
     run_with "stdin-source"
     assert isSet source_resource_types
@@ -84,6 +90,30 @@ run_with() {
     assert notSet namespace_arg
 }
 
+@test "[common] creates variable 'certificate_arg' with value of '--certificate-authority=<ca_file>'" {
+    run_with "stdin-source"
+    assert isSet certificate_arg
+    assert_equal "$certificate_arg" "--certificate-authority=$source_ca_file"
+}
+
+@test "[common] creates variable 'certificate_arg' with value of '--certificate-authority=<ca_file>' when 'source.insecure_skip_tls_verify' is 'false'" {
+    run_with "stdin-source-insecure-skip-tls-verify-false"
+    assert isSet certificate_arg
+    assert_equal "$certificate_arg" "--certificate-authority=$source_ca_file"
+}
+
+@test "[common] creates variable 'certificate_arg' with value of '--insecure-skip-tls-verify' when 'source.insecure_skip_tls_verify' is 'true' (overrides 'source.certificate_authority')" {
+    run_with "stdin-source-insecure-skip-tls-verify-true"
+    assert isSet certificate_arg
+    assert_equal "$certificate_arg" '--insecure-skip-tls-verify'
+}
+
+@test "[common] creates variable 'certificate_arg' with value of '--insecure-skip-tls-verify' when 'source.insecure_skip_tls_verify' is 'true' and 'source.ca_file' omitted" {
+    run_with "stdin-source-insecure-skip-tls-verify-true-ca_file-omitted"
+    assert isSet certificate_arg
+    assert_equal "$certificate_arg" '--insecure-skip-tls-verify'
+}
+
 @test "[common] defaults 'source_url' to empty string" {
     run_with "stdin-source-empty"
     assert notSet source_url
@@ -101,6 +131,11 @@ run_with() {
     assert notSet source_ca
     assert_equal "$source_ca" ''
     assert_equal "$(head -n 1 $source_ca_file)" ''
+}
+
+@test "[common] defaults 'source_insecure_skip_tls_verify' to false" {
+    run_with "stdin-source-empty"
+    assert_equal "$source_insecure_skip_tls_verify" 'false'
 }
 
 @test "[common] defaults 'source_resource_types' to 'pod'" {

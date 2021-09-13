@@ -16,6 +16,8 @@ with a general purpose `put` for running any `kubectl` command.
       ...
       -----END CERTIFICATE-----
   ```
+* `insecure_skip_tls_verify`: _Optional_. If `true`, ignores `certificate_authority` and skips the validity check of the kubernetes server's certificate. Default is `false`. \
+  ⚠️ **Warning**:  _Use with caution. This makes the HTTPS connection insecure!_
 * `resource_types`: _Optional_. Comma separated list of resource type(s) to retrieve (defaults to just `pod`).
   ```yaml
     resource_types: deployment,service,pod

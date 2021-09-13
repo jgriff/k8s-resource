@@ -227,3 +227,35 @@ gh1SensitiveTrue() {
     # should emit the version it was given, back out
     assert_equal "$(jq -r '.version.something' <<< "$output")" 'else'
 }
+
+@test "[in] GH-20 uses '--insecure-skip-tls-verify' when 'source.insecure_skip_tls_verify' is 'true'" {
+    # source the common script
+    source "$SUT_ASSETS_DIR/common" <<< "$(<$BATS_TEST_DIRNAME/fixtures/stdin-source-insecure-skip-tls-verify-true.json)"
+
+    # stub the log function
+    log() { :; }
+    export -f log
+
+    # mock kubectl to expect to be called with '--insecure-skip-tls-verify'
+    local expected_kubectl_args="--server=$source_url --token=$source_token --insecure-skip-tls-verify \
+            get $source_resource_types --all-namespaces --sort-by={.metadata.resourceVersion} -o json"
+    stub kubectl "$expected_kubectl_args : cat $BATS_TEST_DIRNAME/fixtures/kubectl-response.json"
+
+    # source the sut
+    source "$SUT_ASSETS_DIR/in"
+
+    # mock the vars that would be set during 'extractVersion()'
+    target_dir=$BATS_TMPDIR
+    uid="8fca7c5f-c513-11e9-a16f-1831bfd00891"
+    resourceVersion=22577654
+
+    # run the test
+    fetchResource
+
+    # then a 'resource.json' file contains the retrieved resource
+    retrieved_resource="$BATS_TMPDIR/resource.json"
+    assert [ -e "$retrieved_resource" ]
+
+    # and it contains the full resource content
+    assert_equal "$(jq -r '.metadata.uid' < "$retrieved_resource")" '8fca7c5f-c513-11e9-a16f-1831bfd00891'
+}
