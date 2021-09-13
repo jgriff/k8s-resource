@@ -108,3 +108,19 @@ source_out() {
 
     assert_equal "$(jq -r '. | any(.metadata[]; .name == "namespace" and .value == "")' <<< "$output")" 'true'
 }
+
+@test "[out] GH-20 invoke kubectl with '--insecure-skip-tls-verify' when 'source.insecure_skip_tls_verify' is 'true'" {
+    source_out "stdin-source-insecure-skip-tls-verify-true-params-kubectl"
+
+    # mock kubectl to expect our invocation
+    expected_kubectl_args="--server=$source_url --token=$source_token --insecure-skip-tls-verify apply -k overlays/prod"
+    stub kubectl "$expected_kubectl_args : echo 'stuff the k8s server sends back'"
+
+    output=$(invokeKubectl)
+
+    # verify kubectl was called correctly
+    unstub kubectl
+
+    # should emit the output of kubectl
+    assert_equal "$output" 'stuff the k8s server sends back'
+}

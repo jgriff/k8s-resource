@@ -697,3 +697,28 @@ teardown() {
     run queryForVersions
     assert_failure
 }
+
+@test "[check] GH-20 uses '--insecure-skip-tls-verify' when 'source.insecure_skip_tls_verify' is 'true'" {
+    # source the common script
+    source "$SUT_ASSETS_DIR/common" <<< "$(<$BATS_TEST_DIRNAME/fixtures/stdin-source-insecure-skip-tls-verify-true.json)"
+
+    # stub the log function
+    log() { :; }
+    export -f log
+
+    # mock kubectl to expect to be called with '--insecure-skip-tls-verify'
+    local expected_kubectl_args="--server=$source_url --token=$source_token --insecure-skip-tls-verify \
+            get $source_resource_types $expected_namespace_arg --sort-by={.metadata.resourceVersion} -o json"
+    stub kubectl "$expected_kubectl_args : cat $BATS_TEST_DIRNAME/fixtures/kubectl-response.json"
+
+    # source the sut
+    source "$SUT_ASSETS_DIR/check"
+
+    # run the test
+    queryForVersions
+
+    assert_equal $(jq length <<< "$new_versions") 3
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'namespace-other'
+}
