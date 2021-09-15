@@ -22,7 +22,7 @@ source_check() {
 
     # mock kubectl to return our expected response
     local expected_kubectl_args="--server=$source_url --token=$source_token ${expected_ca_arg:---certificate-authority=$source_ca_file} \
-            get $source_resource_types ${expected_namespace_arg:---all-namespaces} --sort-by={.metadata.resourceVersion} -o json"
+            get $source_resource_types ${expected_namespace_arg:---all-namespaces} --selector=${expected_selector_arg} --sort-by={.metadata.resourceVersion} -o json"
 
     if [ $kubectl_response == "FAIL" ]; then
         stub kubectl "$expected_kubectl_args : exit 1"
@@ -703,6 +703,19 @@ teardown() {
 
     queryForVersions
 
+    assert_equal $(jq length <<< "$new_versions") 3
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'namespace-other'
+}
+
+@test "[check] GH-21 filter by selector includes --selector arg to kubectl" {
+    expected_selector_arg="app=my-app"
+    source_check "stdin-source-filter-selector"
+
+    queryForVersions
+
+    # note that we mock the response, so it doesn't have to "make sense"... just that our mock matched our expected args (and therefore returned our mock response)
     assert_equal $(jq length <<< "$new_versions") 3
     assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
     assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-2'

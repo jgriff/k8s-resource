@@ -26,6 +26,14 @@ with a general purpose `put` for running any `kubectl` command.
   For `check`/`get`, this will default to all namespaces (`--all-namespaces`). \
   For `put`, this will default to remaining unset (not specified), but can be overridden with a step param (see [below](#out-execute-a-kubectl-command)).
 * `filter`: _Optional_. Can contain any/all of the following criteria:
+  * `selector`: Specify a label `--selector` for the query.  Can use any valid [label selector expression](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors).  Defaults to empty.
+    ```yaml
+    source:
+      filter:
+        selector: app=my-app,app.kubernetes.io/component in (frontend, backend)
+    ```
+    **Note:** _Selectors are the only filter that are performed server-side, and can help cull down the response before it passes through the rest of the filters (below).
+  This can speed up `check` operations when dealing with a potentially large volume of resources._ 
   * `name`: Matches against the `metadata.name` of the resource.  Supports both literal (`my-ns-1`) and regular expressions (`"my-ns-[0-9]*$"`).
     ```yaml
     source:
