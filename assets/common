@@ -9,17 +9,20 @@ export cyan=${esc}$(printf '[36m')
 export white=${esc}$(printf '[37m')
 export reset=${esc}$(printf '[0m')
 
+# -------------------------------------------------------------------------------------
+# helper functions
+
 log() {
     # accept args
     while test $# -gt 0; do
       case "$1" in
           -p|--public)
               shift
-              PUBLIC=true
+              local PUBLIC=true
               ;;
           -j|--json)
               shift
-              JSON=true
+              local JSON=true
               ;;
           *)
               break
@@ -87,8 +90,14 @@ namespace() {
     echo ${namespace_arg} | sed 's/-n //g'
 }
 
+# -------------------------------------------------------------------------------------
+# write the request payload to a tmp file
 payload=$(mktemp /tmp/resource-in.XXXXXX)
 cat > $payload <&0
+
+
+# -------------------------------------------------------------------------------------
+# slurp some of the config into variables to make them easily accessible by our scripts
 
 # source config
 source_url=$(jq -r '.source.url // ""' < $payload)
@@ -99,14 +108,20 @@ source_namespace=$(jq -r '.source.namespace | select(.!=null)' < $payload)
 source_sensitive=$(jq -r '.source.sensitive | select(.!=null)' < $payload)
 source_insecure_skip_tls_verify=$(jq -r '.source.insecure_skip_tls_verify // false' < $payload)
 
-# write the ca file out (have to pass a file ref to kubectl)
-source_ca_file=$(mktemp /tmp/resource-ca_file.XXXXXX)
-echo "$source_ca" > "$source_ca_file"
-
 # params config
 params_kubectl=$(jq -r '.params.kubectl  | select(.!=null)' < $payload)
 params_namespace=$(jq -r '.params.namespace  | select(.!=null)' < $payload)
 params_sensitive=$(jq -r '.params.sensitive  | select(.!=null)' < $payload)
+
+
+# -------------------------------------------------------------------------------------
+# write the ca file out (have to pass a file ref to kubectl)
+source_ca_file=$(mktemp /tmp/resource-ca_file.XXXXXX)
+echo "$source_ca" > "$source_ca_file"
+
+
+# -------------------------------------------------------------------------------------
+# "special" crafting of some args
 
 # configure the 'namespace_arg', with the params having highest precedence
 if isSet params_namespace; then
@@ -115,6 +130,7 @@ elif isSet source_namespace; then
     namespace_arg="-n $source_namespace"
 fi
 
+# if insecure ca is configured, we don't use a certificate
 if isTrue source_insecure_skip_tls_verify; then
     certificate_arg="--insecure-skip-tls-verify"
 else

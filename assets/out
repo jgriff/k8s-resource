@@ -23,8 +23,8 @@ invokeKubectl() {
         log -p "${red}Warning:${reset}  No namespace configured!"
     fi
 
-    log -p "\nInvoking ${cyan}kubectl${reset} with args ${yellow}'${params_kubectl}'${reset} targeting cluster at ${blue}'${source_url}'${reset} in namespace ${blue}'$(namespace)'${reset}..."
-    kubectl --server=$source_url --token=$source_token ${certificate_arg} ${namespace_arg} ${params_kubectl}
+    log -p "\n--> Invoking ${cyan}kubectl${reset} with args ${yellow}${params_kubectl}${reset} targeting cluster at ${blue}${source_url}${reset} in namespace ${blue}$(namespace)${reset}..."
+    kubectl --server=${source_url} --token=${source_token} ${certificate_arg} ${namespace_arg} ${params_kubectl}
 }
 
 emitResult() {
