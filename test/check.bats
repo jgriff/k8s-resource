@@ -4,10 +4,9 @@ load '/opt/bats/addons/bats-support/load.bash'
 load '/opt/bats/addons/bats-assert/load.bash'
 load '/opt/bats/addons/bats-mock/stub.bash'
 
-setup() {
-    # this is the default when source config doesn't specify
-    expected_namespace_arg="--all-namespaces"
-}
+#setup() {
+    # do any general setup
+#}
 
 source_check() {
     stdin_payload=${1:-"stdin-source"}
@@ -22,8 +21,8 @@ source_check() {
     export -f log
 
     # mock kubectl to return our expected response
-    local expected_kubectl_args="--server=$source_url --token=$source_token --certificate-authority=$source_ca_file \
-            get $source_resource_types $expected_namespace_arg --sort-by={.metadata.resourceVersion} -o json"
+    local expected_kubectl_args="--server=$source_url --token=$source_token ${expected_ca_arg:---certificate-authority=$source_ca_file} \
+            get $source_resource_types ${expected_namespace_arg:---all-namespaces} --sort-by={.metadata.resourceVersion} -o json"
 
     if [ $kubectl_response == "FAIL" ]; then
         stub kubectl "$expected_kubectl_args : exit 1"
@@ -50,7 +49,7 @@ teardown() {
 }
 
 @test "[check] previous version is empty if not provided" {
-    source_check "stdin-source"
+    source_check
 
     extractPreviousVersion
 
@@ -699,22 +698,9 @@ teardown() {
 }
 
 @test "[check] GH-20 uses '--insecure-skip-tls-verify' when 'source.insecure_skip_tls_verify' is 'true'" {
-    # source the common script
-    source "$SUT_ASSETS_DIR/common" <<< "$(<$BATS_TEST_DIRNAME/fixtures/stdin-source-insecure-skip-tls-verify-true.json)"
+    expected_ca_arg="--insecure-skip-tls-verify"
+    source_check "stdin-source-insecure-skip-tls-verify-true"
 
-    # stub the log function
-    log() { :; }
-    export -f log
-
-    # mock kubectl to expect to be called with '--insecure-skip-tls-verify'
-    local expected_kubectl_args="--server=$source_url --token=$source_token --insecure-skip-tls-verify \
-            get $source_resource_types $expected_namespace_arg --sort-by={.metadata.resourceVersion} -o json"
-    stub kubectl "$expected_kubectl_args : cat $BATS_TEST_DIRNAME/fixtures/kubectl-response.json"
-
-    # source the sut
-    source "$SUT_ASSETS_DIR/check"
-
-    # run the test
     queryForVersions
 
     assert_equal $(jq length <<< "$new_versions") 3
