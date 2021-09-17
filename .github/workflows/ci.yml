@@ -3,12 +3,13 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: Run tests
+    name: Unit Tests
     runs-on: ubuntu-latest
 
     steps:
       - name: checkout
         uses: actions/checkout@v2
-
-      - name: bats tests
-        run: ./test/run.sh -v
+      - name: build
+        run: make build
+      - name: test
+        run: make test

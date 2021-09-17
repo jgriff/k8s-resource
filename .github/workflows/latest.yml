@@ -1,0 +1,25 @@
+name: Latest
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  release:
+    name: Update 'latest'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: build latest
+        run: make build_latest
+      - name: test latest
+        run: make test_latest
+      - name: login to docker hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+      - name: push 'latest' to docker hub
+        run: make release_latest
