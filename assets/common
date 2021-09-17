@@ -108,6 +108,9 @@ source_namespace=$(jq -r '.source.namespace | select(.!=null)' < $payload)
 source_sensitive=$(jq -r '.source.sensitive | select(.!=null)' < $payload)
 source_insecure_skip_tls_verify=$(jq -r '.source.insecure_skip_tls_verify // false' < $payload)
 
+# source filter config
+source_filter_selector=$(jq -r '.source.filter.selector | select(. != null)' < $payload)
+
 # params config
 params_kubectl=$(jq -r '.params.kubectl  | select(.!=null)' < $payload)
 params_namespace=$(jq -r '.params.namespace  | select(.!=null)' < $payload)
