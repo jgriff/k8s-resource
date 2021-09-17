@@ -24,6 +24,8 @@ This will:
 
 The `run.sh` script also supports options for running a subset of the tests, and an interactive shell for adhoc manual
 testing (ideal for local development iterations).
+         
+**Note:** _You can also run these tests from our [`Makefile`](../Makefile) targets, which is what our CI and Release pipelines use.  Run `make test` to run all tests across all `kubectl` variants, or `make test_<kubectl-version>` for a single version, `make test_latest` to test the `latest`.  However, the "test shell" approach (below) is still the best for fast/iterative development._
 
 ### Running Selective Tests
 
