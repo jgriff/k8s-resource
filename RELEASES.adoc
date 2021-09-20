@@ -1,0 +1,37 @@
+= Releases
+\ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+\endif::[]
+
+Images are built by our https://github.com/jgriff/k8s-resource/actions[GitHub Actions]
+and released to https://hub.docker.com/r/jgriff/k8s-resource/tags[Docker Hub] using the
+conventions below.
+
+== `latest`
+
+The `latest` image tag always represents the latest state of our `master` branch, shipping with the latest `kubectl` version.
+
+It is built and pushed to Docker Hub by our GitHub Action link:.github/workflows/latest.yml[`latest.yml`] whenever `master` is updated.
+
+
+== Git Release Tags
+
+All versioned releases are performed by our GitHub Action link:.github/workflows/release.yml[`release.yml`] whenever a new `v*` tag is created.
+
+NOTE: The leading `v` will be stripped when creating the Docker tag.
+
+
+Each release ships a set of image variants for a range of `kubectl` versions following the pattern `<git-tag>-kubectl-<kubectl-version>`, where `<kubectl-version>` is the `major.minor.patch` that we are shipping along with its `major.minor` "moving" tag (moves with the latest patch version).
+
+For example, tagging the repo with `v1.2.3` will build and publish the following Docker images:
+
+* `1.2.3-kubectl-<major>.<minor>.<patch>`
+* `1.2.3-kubectl-<major>.<minor>`
+
+for every `<major>.<minor>.<patch>` version of `kubectl` we are shipping with.
+
+The versions of `kubectl` we are currently shipping are listed in the link:Makefile[`Makefile`].
