@@ -1,0 +1,124 @@
+= Contributing
+:toc:
+:toc-title:
+:toc-placement!:
+\ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+\endif::[]
+:image-name: jgriff/k8s-resource
+
+toc::[]
+
+== Issues and Pull Requests
+
+* For *small* changes or quick fixes, a simple https://github.com/jgriff/k8s-resource/pulls[pull request] is sufficient.
+
+* For *non-trivial* changes or bug reports, please file an https://github.com/jgriff/k8s-resource/issues[issue] _before_ submitting a pull request.
+
+* For *substantial* changes, or to discuss a feature request, prefix your issue with "RFC:" (Request For Comment) and tag it with the label https://github.com/jgriff/k8s-resource/labels/rfc[`rfc`].
+
+== Development Builds
+
+For local dev builds, the term `dev` is used in place of the link:RELEASES.adoc[release tag] for the final image tag.
+
+There are `make` targets for each `build` and `test` variant.
+
+|===
+|Make Target |Description
+
+|`build_<major.minor>`
+|Builds local image tagged as `<image>:dev-kubectl-<major.minor.patch>` and `<image>:dev-kubectl-<major.minor>`.
+
+|`test_<major.minor>`
+|Runs unit tests against image tag  `<image>:dev-kubectl-<major.minor.patch>`.
+
+|`build_latest`
+|Builds local image tagged as `<image>:latest`.
+
+|`test_latest`
+|Runs unit tests against image `<image>:latest`.
+|===
+
+where:
+
+* `<image>` defaults to `{image-name}`
+* `<major.minor>` are the `kubectl` versions we are currently shipping (see the link:Makefile[Makefile]).
+
+=== Examples
+
+Build new local `{image-name}:latest`:
+
+[source,bash]
+----
+make build_latest
+----
+
+Build a single, specific `kubectl` variant (`{image-name}:dev-kubectl-1.22`):
+
+[source,bash]
+----
+make build_1.22
+----
+
+Build all `kubectl` variants (`dev-kubectl-<each-kubectl-version>`):
+
+[source,bash]
+----
+make build
+----
+
+Test a single, specific variant:
+
+[source,bash]
+----
+make test_1.22
+----
+
+Run unit tests across all `dev` image variants:
+
+[source,bash]
+----
+make test
+----
+
+Combine targets in single invocation:
+
+[source,bash]
+----
+make build_1.22 test_1.22
+----
+
+=== Overriding the Image Name
+
+Sometimes, you may need to push your dev images to another (private) registry for integration testing or other uses.  In those scenarios, you have 2 basic options:
+
+. Make another tag from source image `{image-name}` after every dev build.
++
+[source,bash,subs="attributes"]
+----
+make build_latest
+docker tag {image-name}:latest my-registry/k8s-resource:latest
+----
+However, this can get hairy for all the `kubectl` version variants and also requires some two-step scripting on your part.
+. Override the `Makefile` variable `IMAGE` to set it to your custom image name (without the tag).
++
+[source,bash]
+----
+make build_latest IMAGE=my-registry/k8s-resource
+----
+This has the added benefit of working for _every_ target.  For example, to build _all_ image variants with your custom image registry name:
++
+[source,bash]
+----
+make build IMAGE=my-registry/k8s-resource
+----
+Works with any target, such as `test`:
++
+[source,bash]
+----
+make test IMAGE=my-registry/k8s-resource
+----
