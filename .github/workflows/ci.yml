@@ -1,5 +1,14 @@
 name: CI
-on: [push, pull_request]
+on:
+  pull_request:
+    branches:
+      - '*'
+  push:
+    branches:
+      - '*'
+    tags-ignore:
+      - '*' # ignore all tags, our 'release' action triggers on tags
+
 
 jobs:
   test:
