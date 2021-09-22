@@ -8,11 +8,7 @@ exec 1>&2 # redirect all output to stderr for logging
 main() {
     log "\n\n--[CHECK]-------------------------"
     extractPreviousVersion
-    queryForVersions
-    filterByName
-    filterByCreationOlderThan
-    filterByPhases
-    filterByJQExpressions
+    queryAndFilter
     pareDownVersionInfo
     emitResult
 }
@@ -21,71 +17,6 @@ extractPreviousVersion() {
     log "\n--> extracting previous version..."
     previous_version=$(jq -r '.version // ""' < $payload)
     log "previous version: $previous_version"
-}
-
-queryForVersions() {
-    set -o pipefail
-    if notSet namespace_arg; then
-        log "${red}Warning:${reset}  No namespace configured!  Defaulting to ${blue}--all-namespaces${reset}."
-        namespace_arg="--all-namespaces"
-    fi
-    log -p "\n--> querying k8s cluster ${blue}${source_url}${reset} in namespace ${blue}$(namespace)${reset} for ${yellow}${source_resource_types}${reset} resources with selector ${cyan}${source_filter_selector}${reset}..."
-    new_versions=$(kubectl --server=${source_url} --token=${source_token} ${certificate_arg} get ${source_resource_types} ${namespace_arg} --selector="${source_filter_selector}" --sort-by='{.metadata.resourceVersion}' -o json | jq '[.items[]]' ) || exit $1
-    log "$new_versions"
-}
-
-filterByName() {
-    FILTER_NAME=$(jq -r '.source.filter.name // ""' < $payload)
-    if [ ! -z "$FILTER_NAME" ]; then
-        log -p "\n--> filtering by name: ${cyan}$FILTER_NAME${reset}"
-        new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq --arg FILTER_NAME $FILTER_NAME -r '[.[] | select(.metadata.name | test($FILTER_NAME))]')
-        log "$new_versions"
-    else
-        log "\n--> name filter not configured, skipping...."
-    fi
-}
-
-filterByCreationOlderThan() {
-    FILTER_OLDER_THAN=$(jq -r '.source.filter.olderThan // ""' < $payload)
-    if [ ! -z "$FILTER_OLDER_THAN" ]; then
-        log -p "\n--> filtering by creation timestamp older than: ${cyan}$FILTER_OLDER_THAN${reset}"
-        new_versions=$(echo $new_versions  | tr '\r\n' ' ' | jq --argjson MAX_AGE $(( $(date +%s) - $FILTER_OLDER_THAN)) -r '[.[] | select(.metadata.creationTimestamp | fromdate | tonumber | select(. < $MAX_AGE)) ]')
-        log "$new_versions"
-    else
-        log "\n--> creation timestamp (older than) filter not configured, skipping...."
-    fi
-}
-
-filterByPhases() {
-    FILTER_PHASES=$(jq -r '.source.filter.phases // ""' < $payload)
-    if [ ! -z "$FILTER_PHASES" ]; then
-        # remove any duplicates
-        FILTER_PHASES=$(echo "$FILTER_PHASES" | jq 'unique')
-
-        log -p "\n--> filtering by phases: ${cyan}$FILTER_PHASES${reset}"
-        new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq --argjson FILTER_PHASES "$FILTER_PHASES" -r '[.[] | select(.status.phase as $candidate | $FILTER_PHASES[] as $required | $candidate == $required)]')
-        log "$new_versions"
-    else
-        log "\n--> phases filter not configured, skipping...."
-    fi
-}
-
-filterByJQExpressions() {
-    FILTER_OPERATOR=$(jq -r '.source.filter.jq_operator // ","' < $payload)
-    FILTER_TRANSFORM=$(jq -r '.source.filter.jq_transform // ""' < $payload)
-    FILTER_QUERY=$(jq -r ".source.filter.jq // [] | map(\"(\" + . + \")\") | join(\" ${FILTER_OPERATOR} \") // \"\"" < $payload)
-    if [ ! -z "$FILTER_QUERY" ]; then
-        log -p "\n--> filtering by JQ query: ${cyan}$FILTER_QUERY${reset}"
-        if [ -n "$FILTER_TRANSFORM" ]; then
-           FILTER_TRANSFORM="| $FILTER_TRANSFORM"
-           log -p "       with transformation: ${cyan}$FILTER_TRANSFORM${reset}"
-        fi
-        new_versions=$(echo "$new_versions" | tr '\r\n' ' ')
-        new_versions=$(echo "$new_versions" | jq -r "[.[] | select( $FILTER_QUERY ) ] | unique $FILTER_TRANSFORM")
-        log "$new_versions"
-    else
-        log "\n--> jq filter not configured, skipping...."
-    fi
 }
 
 pareDownVersionInfo() {
@@ -113,5 +44,6 @@ emitResult() {
 
 if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
     source $(dirname $0)/common
+    source $(dirname $0)/query
     main "$@"
 fi

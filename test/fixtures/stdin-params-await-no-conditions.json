@@ -1,0 +1,7 @@
+{
+  "params": {
+    "await": {
+      "timeout": 10
+    }
+  }
+}

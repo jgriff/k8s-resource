@@ -1,0 +1,11 @@
+{
+  "params": {
+    "await": {
+      "timeout": 10,
+      "conditions": [
+        "select(.kind == \"Pod\") | .status.containerStatuses[] | .ready",
+        "select(.kind == \"Deployment\") | select(.spec.replicas > 0) | .status.readyReplicas > 0"
+      ]
+    }
+  }
+}

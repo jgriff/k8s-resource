@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------------------------
+# cluster query functions - expects 'common' to be already sourced
+
+queryAndFilter() {
+    queryForVersions
+    filterByName
+    filterByCreationOlderThan
+    filterByPhases
+    filterByJQExpressions
+}
+
+queryForVersions() {
+    set -o pipefail
+    if notSet namespace_arg; then
+        log "${red}Warning:${reset}  No namespace configured!  Defaulting to ${blue}--all-namespaces${reset}."
+        namespace_arg="--all-namespaces"
+    fi
+    log -p "\n--> querying k8s cluster ${blue}${source_url}${reset} in namespace ${blue}$(namespace)${reset} for ${yellow}${source_resource_types}${reset} resources with selector ${cyan}${source_filter_selector}${reset}..."
+    new_versions=$(kubectl --server=${source_url} --token=${source_token} ${certificate_arg} get ${source_resource_types} ${namespace_arg} --selector="${source_filter_selector}" --sort-by='{.metadata.resourceVersion}' -o json | jq '[.items[]]' ) || exit $1
+    log "$new_versions"
+}
+
+filterByName() {
+    local filter_name=$(jq -r '.source.filter.name // ""' < $payload)
+    if [ ! -z "$filter_name" ]; then
+        log -p "--> filtering by name: ${cyan}$filter_name${reset}"
+        new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq --arg filter_name $filter_name -r '[.[] | select(.metadata.name | test($filter_name))]')
+        log "$new_versions"
+    else
+        log "--> name filter not configured, skipping...."
+    fi
+}
+
+filterByCreationOlderThan() {
+    local filter_older_than=$(jq -r '.source.filter.olderThan // ""' < $payload)
+    if [ ! -z "$filter_older_than" ]; then
+        log -p "--> filtering by creation timestamp older than: ${cyan}$filter_older_than${reset}"
+        new_versions=$(echo $new_versions  | tr '\r\n' ' ' | jq --argjson MAX_AGE $(( $(date +%s) - $filter_older_than)) -r '[.[] | select(.metadata.creationTimestamp | fromdate | tonumber | select(. < $MAX_AGE)) ]')
+        log "$new_versions"
+    else
+        log "--> creation timestamp (older than) filter not configured, skipping...."
+    fi
+}
+
+filterByPhases() {
+    local filter_phases=$(jq -r '.source.filter.phases // ""' < $payload)
+    if [ ! -z "$filter_phases" ]; then
+        # remove any duplicates
+        filter_phases=$(echo "$filter_phases" | jq 'unique')
+
+        log -p "--> filtering by phases: ${cyan}$filter_phases${reset}"
+        new_versions=$(echo "$new_versions" | tr '\r\n' ' ' | jq --argjson filter_phases "$filter_phases" -r '[.[] | select(.status.phase as $candidate | $filter_phases[] as $required | $candidate == $required)]')
+        log "$new_versions"
+    else
+        log "--> phases filter not configured, skipping...."
+    fi
+}
+
+filterByJQExpressions() {
+    local filter_operator=$(jq -r '.source.filter.jq_operator // ","' < $payload)
+    local filter_transform=$(jq -r '.source.filter.jq_transform // ""' < $payload)
+    local filter_query=$(jq -r ".source.filter.jq // [] | map(\"(\" + . + \")\") | join(\" ${filter_operator} \") // \"\"" < $payload)
+    if [ ! -z "$filter_query" ]; then
+        log -p "--> filtering by JQ query: ${cyan}$filter_query${reset}"
+        if [ -n "$filter_transform" ]; then
+           filter_transform="| $filter_transform"
+           log -p "       with transformation: ${cyan}$filter_transform${reset}"
+        fi
+        new_versions=$(echo "$new_versions" | tr '\r\n' ' ')
+        new_versions=$(echo "$new_versions" | jq -r "[.[] | select( $filter_query ) ] | unique $filter_transform")
+        log "$new_versions"
+    else
+        log "--> jq filter not configured, skipping...."
+    fi
+}

@@ -9,6 +9,7 @@ main() {
     log "\n\n--[OUT]-------------------------"
     sourcesDirectory $1
     invokeKubectl
+    await
     emitResult
 }
 
@@ -23,7 +24,7 @@ invokeKubectl() {
         log -p "${red}Warning:${reset}  No namespace configured!"
     fi
 
-    log -p "\n--> Invoking ${cyan}kubectl${reset} with args ${yellow}${params_kubectl}${reset} targeting cluster at ${blue}${source_url}${reset} in namespace ${blue}$(namespace)${reset}..."
+    log -p "\n--> Invoking ${yellow}kubectl${reset} with args ${yellow}${params_kubectl}${reset} targeting cluster at ${blue}${source_url}${reset} in namespace ${blue}$(namespace)${reset}..."
     kubectl --server=${source_url} --token=${source_token} ${certificate_arg} ${namespace_arg} ${params_kubectl}
 }
 
@@ -44,5 +45,7 @@ emitResult() {
 
 if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
     source $(dirname $0)/common
+    source $(dirname $0)/query
+    source $(dirname $0)/await
     main "$@"
 fi

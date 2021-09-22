@@ -204,6 +204,57 @@ the command based on the `source` configuration.
 
 * `namespace`: _Optional._  Overrides the source configuration's value for this particular `put` step.
 
+* `await`: _Optional._  Configures the `put` step to poll the cluster (after running the `kubectl` command) for resources and await certain conditions before succeeding.  Has the following configuration:
+** `timeout`: _Required_. Must be a positive integer to enable waiting (anything else disables waiting). Measured in seconds.
+** `interval`: _Optional_.  Polling interval, measured in seconds (defaults to `3`).
+** `resource_types`: _Optional_. Overrides the source config `resources_types` for what to retrieve from the cluster and run through the `conditions`.
+** `conditions`: _Optional_. List of zero or more `jq` expressions to evaluate. If none are given, default expressions are inferred based on the `resource_types` being retrieved.
+
+==== Wait Conditions
+
+Wait conditions are expressed as `jq` expressions listed under `await.conditions` in the `put` step `params` (similar to the `filter.jq` list in `source` configuration of the resource).
+The conditions are given each resource's root JSON object.
+
+[source,yaml]
+----
+- put: k8s
+  params:
+    kubectl: create deployment my-nginx --image=nginx
+    await:
+      timeout: 30 # seconds
+      resource_types: deployment
+      conditions:
+        - select(.spec.replicas > 0) | .status.readyReplicas > 0
+----
+
+* Can list zero or more conditions (see defaults below for when none are given).
+* Each expression _must_ evaluate to a boolean result (`true` or `false`), all other results are ignored.
+* All conditions must produce at least one `true` result, and no `false` results.
+* If the `timeout` is reached before the conditions are satisfied, `put` will fail.
+
+===== Default Wait Conditions
+
+If no `conditions` are given, wait will attempt to infer sensible default conditions based on the `resource_types`.
+The table below list the conditions that are used by default.
+
+|===
+|`resource_types` |Default Condition
+
+| `pod`, `pods`, `po`
+| `select(.kind == "Pod") \| .status.containerStatuses[] \| .ready`
+
+| `deployment`, `deployments`, `deploy`
+| `select(.kind == "Deployment") \| select(.spec.replicas > 0) \| .spec.replicas == .status.readyReplicas`
+
+| `replicaset`, `replicasets`, `rs`
+| `select(.kind == "ReplicaSet") \| select(.spec.replicas > 0) \| .spec.replicas == .status.readyReplicas`
+
+| `statefulset`, `statefulsets`, `sts`
+| `select(.kind == "StatefulSet") \| select(.spec.replicas > 0) \| .spec.replicas == .status.readyReplicas`
+
+|===
+
+NOTE: The default source config `resource_types` is `pod`.
 
 == Examples
 
@@ -292,7 +343,106 @@ jobs:
           namespace: prod
 ----
 
+=== `put` with `await`
 
+Here's the same example as above, with the added `await` behavior where `put` will wait up to 2 minutes for the deployment to come up.
+If the deployment isn't ready after 2 minutes, `put` will fail.
+
+[source,yaml]
+----
+resource_types:
+  - name: k8s-resource
+    type: docker-image
+    source:
+      repository: jgriff/k8s-resource
+
+resources:
+  - name: k8s
+    type: k8s-resource
+    icon: kubernetes
+    source:
+      url: ((k8s-server))
+      token: ((k8s-token))
+      certificate_authority: ((k8s-ca))
+
+jobs:
+  - name: deploy-prod
+    plan:
+      - get: my-k8s-repo
+        trigger: true
+      - put: k8s
+        params:
+          kubectl: apply -f my-k8s-repo/deploy.yaml
+          namespace: prod
+          await:
+            timeout: 120
+            resource_types: deployment
+----
+
+=== `put` with `await` leveraging check filters
+
+Since `await` uses `check` to retrieve the resources, all the `source.filter` options are available to you when querying for resources to check against your conditions.
+
+For example:
+
+[source,yaml]
+----
+resources:
+  - name: k8s
+    type: k8s-resource
+    icon: kubernetes
+    source:
+      url: ((k8s-server))
+      token: ((k8s-token))
+      certificate_authority: ((k8s-ca))
+      namespace: prod
+      resource_types: deployment
+      filter:
+        selector: app=my-app,app.kubernetes.io/component in (frontend, backend)
+        name: "my-*"
+
+jobs:
+  - name: deploy-prod
+    plan:
+      - get: my-k8s-repo
+        trigger: true
+      - put: k8s
+        params:
+          kubectl: apply -f my-k8s-repo/deploy.yaml
+          await:
+            timeout: 120
+----
+
+This will:
+
+. Apply our deployment from `deploy.yaml`.
+. Then wait at most 2 minutes for all deployments to reach a ready state (default condition for `deployment` resource types) who:
+* name starts with `"my-"`
+* have a metadata label `"app.kubernetes.io/component"` of either `"frontend"` or `"backend"` to reach a ready state.
+
+
+=== `put` with `await` custom conditions
+
+You can supply any custom condition to `await` on.
+
+[source,yaml]
+----
+jobs:
+  - name: deploy-prod
+    plan:
+      - get: my-k8s-repo
+        trigger: true
+      - put: k8s
+        params:
+          kubectl: apply -f my-k8s-repo/deploy.yaml
+          namespace: prod
+          await:
+            timeout: 120
+            resource_types: deployment,statefulset
+            conditions:
+              - select(.metadata.name == "my-deployment") | .status.readyReplicas > 0
+              - select(.metadata.name == "my-statefulset") | .status.readyReplicas > 0
+----
 
 === `get` and `put` Resources
 
