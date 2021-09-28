@@ -232,6 +232,8 @@ The conditions are given each resource's root JSON object.
 * All conditions must produce at least one `true` result, and no `false` results.
 * If the `timeout` is reached before the conditions are satisfied, `put` will fail.
 
+IMPORTANT: Be sure to craft your expressions to safely filter out or ignore any resources you don't care about, taking note of the `resource_types` you are querying for.  _Any `false` result will in any condition will prevent the wait from succeeding._
+
 ===== Default Wait Conditions
 
 If no `conditions` are given, wait will attempt to infer sensible default conditions based on the `resource_types`.
@@ -416,9 +418,9 @@ jobs:
 This will:
 
 . Apply our deployment from `deploy.yaml`.
-. Then wait at most 2 minutes for all deployments to reach a ready state (default condition for `deployment` resource types) who:
-* name starts with `"my-"`
-* have a metadata label `"app.kubernetes.io/component"` of either `"frontend"` or `"backend"` to reach a ready state.
+. Then wait at most 2 minutes for all deployments to reach a ready state (default condition for `deployment` resource types) whose:
+* name starts with `"my-"`.
+* have a metadata label `"app.kubernetes.io/component"` of either `"frontend"` or `"backend"`.
 
 
 === `put` with `await` custom conditions
