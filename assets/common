@@ -3,6 +3,7 @@
 # colors
 export esc=$(printf '\033')
 export red=${esc}$(printf '[31m')
+export green=${esc}$(printf '[32m')
 export yellow=${esc}$(printf '[33m')
 export blue=${esc}$(printf '[34m')
 export cyan=${esc}$(printf '[36m')
@@ -83,6 +84,14 @@ isSensitive() {
     if isTrue params_sensitive; then return 0; fi
     if isTrue source_sensitive && notSet params_sensitive; then return 0; fi
     return 1;
+}
+
+# usage: containsElement "candidate" "${the_array_to_test[@]}"
+containsElement () {
+  local e match="$1"
+  shift
+  for e; do [[ "$e" == "$match" ]] && return 0; done
+  return 1
 }
 
 namespace() {

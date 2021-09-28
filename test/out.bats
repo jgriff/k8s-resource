@@ -16,6 +16,7 @@ source_out() {
     export -f log
 
     # source the sut
+    source "$SUT_ASSETS_DIR/await"
     source "$SUT_ASSETS_DIR/out"
 }
 
@@ -123,4 +124,32 @@ source_out() {
 
     # should emit the output of kubectl
     assert_equal "$output" 'stuff the k8s server sends back'
+}
+
+@test "[out] GH-19 await is enabled if timeout is configured" {
+    source_out "stdin-params-await"
+
+    # stub 'awaitLoop' to expect to be called with our timeout
+    invoked=false
+    awaitLoop() { invoked=true; }
+    export -f awaitLoop
+
+    await
+
+    # verify 'awaitLoop' was called
+    assert_equal $invoked true
+}
+
+@test "[out] GH-19 await is NOT enabled if timeout is <= 0" {
+    source_out "stdin-params-await-disabled"
+
+    # stub 'awaitLoop' to expect to be called with our timeout
+    invoked=false
+    awaitLoop() { invoked=true; }
+    export -f awaitLoop
+
+    await
+
+    # verify 'awaitLoop' was called
+    assert_equal $invoked false
 }

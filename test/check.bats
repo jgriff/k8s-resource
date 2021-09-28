@@ -31,6 +31,7 @@ source_check() {
     fi
 
     # source the sut
+    source "$SUT_ASSETS_DIR/query"
     source "$SUT_ASSETS_DIR/check"
 }
 

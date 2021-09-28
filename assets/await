@@ -1,0 +1,160 @@
+#!/bin/bash
+
+# -------------------------------------------------------------------------------------
+# await functions - expects 'common' to be already sourced
+
+await() {
+    # await is only enabled if the timeout is configured
+    local await_enabled=$(jq -r '.params.await.timeout > 0' < $payload)
+
+    if isTrue await_enabled; then
+        local await_timeout=$(jq -r '.params.await.timeout' < $payload)
+        local await_interval=$(jq -r '.params.await.interval | select(.!=null)' < $payload)
+
+        # potentially override 'resource_types'
+        local override_resource_types=$(jq -r '.params.await.resource_types | select(.!=null)' < $payload)
+        if isSet override_resource_types; then
+            source_resource_types=$override_resource_types
+        fi
+
+        log -p "\n--> Waiting up to ${yellow}${await_timeout}${reset} seconds for the following condition(s) to be true for resource type(s): ${yellow}$source_resource_types${reset}$(jq --arg nl "\n" --arg color $cyan --arg reset $reset -r '.[] | $nl + "- " + $color + . + $reset' <<< "$(getAwaitConditions)")${reset}"
+
+        awaitLoop $await_timeout $await_interval
+    fi
+}
+
+awaitLoop() {
+  local await_timeout=$1
+  local await_interval=${2:-3}
+
+  local await_started_at=$(date +%s)
+  local await_timeout_at=$((await_started_at + await_timeout))
+
+  local tmp_await_status=$(mktemp)
+  echo "False" > $tmp_await_status
+
+  await_attempts=1
+  until checkAwaitConditions $await_attempts && echo "True" > $tmp_await_status || [ $(date +%s) -gt $await_timeout_at ]
+  do
+      local await_time_left=$(($await_timeout_at - $(date +%s)))
+      local await_time_left_COLOR
+      if [[ $await_time_left -gt 120 ]]; then
+          await_time_left_COLOR=${green}
+      elif [[ $await_time_left -gt 30 ]]; then
+          await_time_left_COLOR=${yellow}
+      else
+          await_time_left_COLOR=${red}
+      fi
+
+      log -p "[$await_attempts]⏳Awaiting cluster conditions, ${await_time_left_COLOR}$(( $await_time_left / 60))m$(( $await_time_left % 60))s${reset} left before giving up..."
+      sleep $await_interval
+      (( await_attempts++ ))
+  done
+
+  local await_elapsed=$(( $(date +%s) - await_started_at))
+  local await_duration_summary="${yellow}$await_attempts${reset} attempt(s) taking ${yellow}$(( $await_elapsed / 60))m$(( $await_elapsed % 60))s${reset}"
+  if [[ $(cat $tmp_await_status) == "True" ]]
+  then
+      log -p "\n${green}Success!${reset} All conditions satisfied after $await_duration_summary!"
+  else
+      log -p "\n${red}Timeout exceeded.${reset} Failed to meet condition(s) after $await_duration_summary."
+      exit 111
+  fi
+}
+
+checkAwaitConditions() {
+    # query for current cluster status
+    local attempt=${1:-1}
+    if [[ $attempt = 1 ]]; then
+        # execute the first check without redirecting output to /dev/null so user can see the query filters being used
+        queryForVersions
+    else
+        queryForVersions &> /dev/null
+    fi
+
+    # check each condition individually
+    local tmp_conditions_results=$(mktemp)
+    jq -r '.[]' <<< "$(getAwaitConditions | tr '\r\n' ' ')" | while read -r condition; do
+        # evaluate this condition, collecting an array of the results
+        local results=($(jq -r ".[] | $condition | select(. == true or . == false)" <<< "$new_versions" | jq -s '.' | jq -r 'map(tostring) | join(" ")'))
+
+        # count up number of true/false matches
+        local trueCount=0
+        local falseCount=0
+        for result in "${results[@]}"; do
+            if isTrue result; then
+                ((trueCount++))
+            else
+                ((falseCount++))
+            fi
+        done
+
+        # color code the printout of the counts
+        local trueCountColor=${red}
+        local falseCountColor=${green}
+        if [ $trueCount -gt 0 ]; then
+            trueCountColor=$green
+        fi
+        if [ $falseCount -gt 0 ]; then
+            falseCountColor=$red
+        fi
+
+        # assert the results from this condition have:
+        # - at least one 'true' value
+        # - no 'false' values
+        # ✘ [true: 0, false: 5]: <condition>
+        # ✘ [true: 2, false: 3]: <condition>
+        # ✔ [true: 5, false: 0]: <condition>
+        resultsStatement="[true: ${trueCountColor}$trueCount${reset}, false: ${falseCountColor}$falseCount${reset}]: ${cyan}$condition${reset}"
+        if [ $trueCount -gt 0 ] && [ $falseCount -eq 0 ]; then
+            log -p "${green}✔${reset} ${resultsStatement}"
+        else
+            log -p "${red}✘${reset} ${resultsStatement}"
+            echo "FAILED" > $tmp_conditions_results
+        fi
+    done
+
+    # now, assert no condition failed
+    if cat $tmp_conditions_results | grep -q 'FAILED'; then
+        return 1
+    fi
+}
+
+getAwaitConditions() {
+    local conditions=$(jq -r '.params.await.conditions | select(.!=null)' < $payload)
+
+    # if no user conditions given, use defaults
+    if notSet conditions; then
+        IFS=',' read -ra active_res_types <<< "$source_resource_types"
+        local default_conditions=()
+
+        if containsElement "po" "${active_res_types[@]}" || \
+           containsElement "pod" "${active_res_types[@]}" || \
+           containsElement "pods" "${active_res_types[@]}"; then
+          default_conditions+=('select(.kind == "Pod") | .status.containerStatuses[] | .ready')
+        fi
+
+        if containsElement "deployment" "${active_res_types[@]}" || \
+           containsElement "deployments" "${active_res_types[@]}" || \
+           containsElement "deploy" "${active_res_types[@]}"; then
+          default_conditions+=('select(.kind == "Deployment") | select(.spec.replicas > 0) | .spec.replicas == .status.readyReplicas')
+        fi
+
+        if containsElement "replicaset" "${active_res_types[@]}" || \
+           containsElement "replicasets" "${active_res_types[@]}" || \
+           containsElement "rs" "${active_res_types[@]}"; then
+          default_conditions+=('select(.kind == "ReplicaSet") | select(.spec.replicas > 0) | .spec.replicas == .status.readyReplicas')
+        fi
+
+        if containsElement "statefulset" "${active_res_types[@]}" || \
+           containsElement "statefulsets" "${active_res_types[@]}" || \
+           containsElement "sts" "${active_res_types[@]}"; then
+          default_conditions+=('select(.kind == "StatefulSet") | select(.spec.replicas > 0) | .spec.replicas == .status.readyReplicas')
+        fi
+
+        # collect all of the enabled default conditions
+        conditions=$(IFS=$'\n'; echo "${default_conditions[*]}" | jq -R . | jq -s '.')
+    fi
+
+    echo "$conditions"
+}
