@@ -58,6 +58,11 @@ the tests yourself.
 ./run.sh shell
 ```
 
+There's also a [`Makefile`](../Makefile) target for it (from the root of the project).
+
+```bash
+make test_shell
+```
 
 
 This will build the resource and test image as usual, but instead of running the tests and exiting it will drop you into

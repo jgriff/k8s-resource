@@ -68,6 +68,11 @@ test_1.18 test_1.19 test_1.20 test_1.21 test_1.22 test_latest:
 	@echo -e "\n[${COLOR_BLUE}test${COLOR_RESET}/${COLOR_TEAL}${TAG}${COLOR_RESET}] ${COLOR_ORANGE}Testing image${COLOR_RESET}..."
 	@./test/run.sh -i ${IMAGE}:${TAG} -v
 
+.PHONY: test_shell
+test_shell:
+	@echo -e "[${COLOR_BLUE}test${COLOR_RESET}/${COLOR_TEAL}shell${COLOR_RESET}] ${COLOR_ORANGE}Launching test shell${COLOR_RESET}..."
+	@./test/run.sh shell
+
 # ---------------------------------------------------------------------------------------
 # release
 # ---------------------------------------------------------------------------------------
