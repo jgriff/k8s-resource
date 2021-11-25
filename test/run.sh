@@ -177,14 +177,15 @@ runTests() {
 
 openShellSession() {
     echo "${icon_shell_session} ${blue}Opening${reset} shell session in ${yellow}${TEST_IMAGE}${reset} container ..."
-    echo -e "\nUsage:"
-    echo -e "    bats <tests-to-run>"
-    echo -e "Examples:"
-    echo -e "    bats test             - run all tests"
-    echo -e "    bats test/check.bats  - run all tests for 'check'"
-    echo -e "    bats test/in.bats     - run all tests for 'in'"
-    echo -e "    bats test/out.bats    - run all tests for 'out'"
-    echo -e ""
+    echo ""
+    echo "Usage:"
+    echo "    bats <tests-to-run>"
+    echo "Examples:"
+    echo "    bats test             - run all tests"
+    echo "    bats test/check.bats  - run all tests for 'check'"
+    echo "    bats test/in.bats     - run all tests for 'in'"
+    echo "    bats test/out.bats    - run all tests for 'out'"
+    echo ""
     docker run --rm -it -v ${PROJECT_HOME}:/code -w /code -e SUT_ASSETS_DIR=/code/assets --entrypoint /bin/bash ${TEST_IMAGE}
     TEST_RESULT=shell
 }
