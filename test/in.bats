@@ -4,9 +4,9 @@ load '/opt/bats/addons/bats-support/load.bash'
 load '/opt/bats/addons/bats-assert/load.bash'
 load '/opt/bats/addons/bats-mock/stub.bash'
 
-setup() {
-    rm -f "$BATS_TMPDIR/resource.json"
-}
+#setup() {
+    # do any general setup
+#}
 
 source_in() {
     stdin_payload=${1:-"stdin-source-with-version"}
@@ -46,14 +46,14 @@ teardown() {
 @test "[in] fetches the resource matching the requested version" {
     source_in
 
-    target_dir=$BATS_TMPDIR
+    target_dir=$BATS_TEST_TMPDIR
     uid="8fca7c5f-c513-11e9-a16f-1831bfd00891"
     resourceVersion=22577654
 
     fetchResource
 
     # then a 'resource.json' file contains the retrieved resource
-    retrieved_resource="$BATS_TMPDIR/resource.json"
+    retrieved_resource="$BATS_TEST_TMPDIR/resource.json"
     assert [ -e "$retrieved_resource" ]
 
     # and it contains the full resource content
@@ -65,35 +65,35 @@ teardown() {
 @test "[in] fetched resource file will be empty if the requested uid is not found" {
     source_in
 
-    target_dir=$BATS_TMPDIR
+    target_dir=$BATS_TEST_TMPDIR
     uid="uid-that-does-not-exist"
     resourceVersion=22577654
 
     fetchResource
 
     # then the 'resource.json' file will exist
-    retrieved_resource="$BATS_TMPDIR/resource.json"
+    retrieved_resource="$BATS_TEST_TMPDIR/resource.json"
     assert [ -e "$retrieved_resource" ]
 
     # but it should be empty
-    refute [ -s "$retrieved_resource/resource.json" ]
+    refute [ -s "$retrieved_resource" ]
 }
 
 @test "[in] fetched resource file will be empty if the requested resourceVersion does not match" {
     source_in
 
-    target_dir=$BATS_TMPDIR
+    target_dir=$BATS_TEST_TMPDIR
     uid="8fca7c5f-c513-11e9-a16f-1831bfd00891"
     resourceVersion=42
 
     fetchResource
 
     # then the 'resource.json' file will exist
-    retrieved_resource="$BATS_TMPDIR/resource.json"
+    retrieved_resource="$BATS_TEST_TMPDIR/resource.json"
     assert [ -e "$retrieved_resource" ]
 
     # but it should be empty
-    refute [ -s "$retrieved_resource/resource.json" ]
+    refute [ -s "$retrieved_resource" ]
 }
 
 @test "[in] e2e in" {
@@ -118,7 +118,7 @@ teardown() {
 @test "[in] GH-1: echos fetched resource content by default" {
     source_in
 
-    target_dir=$BATS_TMPDIR
+    target_dir=$BATS_TEST_TMPDIR
 
     # write out a dummy resource file that we expect our sut to log (publicly)
     jq -n "{
@@ -142,7 +142,7 @@ teardown() {
 }
 
 gh1SensitiveFalse() {
-    target_dir=$BATS_TMPDIR
+    target_dir=$BATS_TEST_TMPDIR
 
     # write out a dummy resource file to use as input
     jq -n "{
@@ -166,7 +166,7 @@ gh1SensitiveFalse() {
 }
 
 gh1SensitiveTrue() {
-    target_dir=$BATS_TMPDIR
+    target_dir=$BATS_TEST_TMPDIR
 
     # write out a dummy resource file to use as input
     jq -n "{
@@ -245,7 +245,7 @@ gh1SensitiveTrue() {
     source "$SUT_ASSETS_DIR/in"
 
     # mock the vars that would be set during 'extractVersion()'
-    target_dir=$BATS_TMPDIR
+    target_dir=$BATS_TEST_TMPDIR
     uid="8fca7c5f-c513-11e9-a16f-1831bfd00891"
     resourceVersion=22577654
 
@@ -253,7 +253,7 @@ gh1SensitiveTrue() {
     fetchResource
 
     # then a 'resource.json' file contains the retrieved resource
-    retrieved_resource="$BATS_TMPDIR/resource.json"
+    retrieved_resource="$BATS_TEST_TMPDIR/resource.json"
     assert [ -e "$retrieved_resource" ]
 
     # and it contains the full resource content

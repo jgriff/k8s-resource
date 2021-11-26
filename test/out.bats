@@ -23,10 +23,10 @@ source_out() {
 @test "[out] GH-7 changes into sources directory given" {
     source_out
 
-    sourcesDirectory "$BATS_TMPDIR"
+    sourcesDirectory "$BATS_TEST_TMPDIR"
 
     # assert that we changed into the directory
-    assert_equal $BATS_TMPDIR $PWD
+    assert_equal $(readlink -m $BATS_TEST_TMPDIR) $(readlink -m $PWD)
 }
 
 @test "[out] GH-7 invoke kubectl with args provided by 'params.kubectl'" {
