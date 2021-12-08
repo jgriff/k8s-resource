@@ -55,7 +55,7 @@ awaitLoop() {
   local await_duration_summary="${yellow}$await_attempts${reset} attempt(s) taking ${yellow}$(( $await_elapsed / 60))m$(( $await_elapsed % 60))s${reset}"
   if [[ $(cat $tmp_await_status) == "True" ]]
   then
-      log -p "\n${green}Success!${reset} All conditions satisfied after $await_duration_summary!"
+      log -p "\n${green}Success!${reset} All conditions satisfied after $await_duration_summary."
   else
       log -p "\n${red}Timeout exceeded.${reset} Failed to meet condition(s) after $await_duration_summary."
       exit 111
