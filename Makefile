@@ -86,5 +86,7 @@ release_1.22: TAG=${VERSION}-kubectl-${KUBECTL_1.22}
 release_latest: TAG=latest
 release_1.18 release_1.19 release_1.20 release_1.21 release_1.22 release_latest:
 	@echo -e "\n[${COLOR_BLUE}release${COLOR_RESET}/${COLOR_TEAL}${TAG}${COLOR_RESET}] ${COLOR_ORANGE}Pushing image${COLOR_RESET}..."
-	@docker push ${IMAGE}:${TAG}
-	@docker push ${IMAGE}:$(shell echo ${TAG} | rev | cut -d '.' -f2- | rev )
+	@docker buildx create --name k8s-resource-builder
+	@docker buildx build --builder k8s-resource-builder --platform linux/amd64,linux/arm64/v8 --push --tag ${IMAGE}:$(shell echo ${TAG} | rev | cut -d '.' -f2- | rev ) .
+	@docker buildx build --builder k8s-resource-builder --platform linux/amd64,linux/arm64/v8 --push --tag ${IMAGE}:${TAG} .
+	@docker buildx rm k8s-resource-builder

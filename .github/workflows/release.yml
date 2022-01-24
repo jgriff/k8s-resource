@@ -18,6 +18,13 @@ jobs:
         run: make build VERSION=$RELEASE_VERSION
       - name: test all image variants
         run: make test VERSION=$RELEASE_VERSION
+      - name: setup qemu (to run builders other than host)
+        uses: docker/setup-qemu-action@master
+        with:
+          platforms: all
+      - name: setup buildx (used by our 'release' makefile target for multi-arch releases)
+        id: buildx
+        uses: docker/setup-buildx-action@master
       - name: login to docker hub
         uses: docker/login-action@v1
         with:
