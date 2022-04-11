@@ -43,7 +43,7 @@ CAUTION: Use with caution. This makes the HTTPS connection insecure!
 
 * `namespace`: _Optional_. The namespace to restrict the query to. +
 For `check`/`get`, this will default to all namespaces (`--all-namespaces`). +
-For `put`, this will default to remaining unset (not specified), but can be overridden with a step param (see [below](#out-execute-a-kubectl-command)).
+For `put`, this will default to remaining unset (not specified), but can be overridden with a step param (see link:#out[below]).
 
 * `filter`: _Optional_. Can contain any/all the following criteria:
 
@@ -191,6 +191,7 @@ Retrieve the single resource as JSON (`-o json`) and writes it to a file `resour
 
 * `sensitive`: _Optional._  Overrides the source configuration's value for this particular `get`.
 
+[#out]
 === `out`: Execute a `kubectl` command
 
 General purpose execution of `kubectl` with args provided as a param to `put`.
