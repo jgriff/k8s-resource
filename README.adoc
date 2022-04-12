@@ -77,6 +77,15 @@ source:
     olderThan: 86400
 ----
 
+** `youngerThan`: Time in seconds that the `metadata.creationTimestamp` must be younger than (ex: `3600` for 1hr).
++
+[source,yaml]
+----
+source:
+  filter:
+    youngerThan: 3600
+----
+
 ** `phases`: List of `status.phase` value(s) the resource must match at least one of.  This varies depending on the resource.
 For example, a https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase[pod's status] can be one of `Pending`, `Running`, `Succeeded`, `Failed` or `Unknown`.
 To retrieve only `Failed` or `Unknown` pods:

@@ -223,6 +223,110 @@ teardown() {
     assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'namespace-3'
 }
 
+@test "[check] filter by youngerThan" {
+    source_check "stdin-source-filter-youngerThan"
+
+    now="$(date +%Y-%m-%dT%H:%M:%SZ)"
+    hourAgo="$(date -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
+    dayAgo="$(date -d '25 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+
+    new_versions="[
+        {
+            \"metadata\": {
+                \"name\": \"namespace-1\",
+                \"creationTimestamp\": \"$now\"
+            }
+        },
+        {
+            \"metadata\": {
+                \"name\": \"namespace-2\",
+                \"creationTimestamp\": \"$hourAgo\"
+            }
+        },
+        {
+            \"metadata\": {
+                \"name\": \"namespace-3\",
+                \"creationTimestamp\": \"$dayAgo\"
+            }
+        }
+    ]"
+
+    filterByCreationYoungerThan
+
+    # then we only have namespaces younger than our criteria (1 hour)
+    assert_equal $(jq length <<< "$new_versions") 1
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
+}
+
+@test "[check] filter by youngerThan not configured" {
+    source_check "stdin-source-empty"
+
+    new_versions="[
+        {
+            \"metadata\": {
+                \"name\": \"namespace-1\",
+                \"creationTimestamp\": \"$now\"
+            }
+        },
+        {
+            \"metadata\": {
+                \"name\": \"namespace-2\",
+                \"creationTimestamp\": \"$hourAgo\"
+            }
+        },
+        {
+            \"metadata\": {
+                \"name\": \"namespace-3\",
+                \"creationTimestamp\": \"$dayAgo\"
+            }
+        }
+    ]"
+
+    filterByCreationYoungerThan
+
+    # then our 'new_versions' is left unchanged
+    assert_equal $(jq length <<< "$new_versions") 3
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-1'
+    assert_equal "$(jq -r '.[1].metadata.name' <<< "$new_versions")" 'namespace-2'
+    assert_equal "$(jq -r '.[2].metadata.name' <<< "$new_versions")" 'namespace-3'
+}
+
+@test "[check] filter by youngerThan and olderThan (together)" {
+    source_check "stdin-source-filter-youngerThan-olderThan"
+
+    now="$(date +%Y-%m-%dT%H:%M:%SZ)"
+    hourAgo="$(date -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
+    dayAgo="$(date -d '25 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+
+    new_versions="[
+        {
+            \"metadata\": {
+                \"name\": \"namespace-1\",
+                \"creationTimestamp\": \"$now\"
+            }
+        },
+        {
+            \"metadata\": {
+                \"name\": \"namespace-2\",
+                \"creationTimestamp\": \"$hourAgo\"
+            }
+        },
+        {
+            \"metadata\": {
+                \"name\": \"namespace-3\",
+                \"creationTimestamp\": \"$dayAgo\"
+            }
+        }
+    ]"
+
+    filterByCreationOlderThan
+    filterByCreationYoungerThan
+
+    # then we only have namespaces that fit between our age range
+    assert_equal $(jq length <<< "$new_versions") 1
+    assert_equal "$(jq -r '.[0].metadata.name' <<< "$new_versions")" 'namespace-2'
+}
+
 @test "[check] pare down version info and emit only uid/resourceVersion" {
     source_check
 

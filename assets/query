@@ -7,6 +7,7 @@ queryAndFilter() {
     queryForVersions
     filterByName
     filterByCreationOlderThan
+    filterByCreationYoungerThan
     filterByPhases
     filterByJQExpressions
 }
@@ -41,6 +42,17 @@ filterByCreationOlderThan() {
         log "$new_versions"
     else
         log "--> creation timestamp (older than) filter not configured, skipping...."
+    fi
+}
+
+filterByCreationYoungerThan() {
+    local filter_younger_than=$(jq -r '.source.filter.youngerThan // ""' < $payload)
+    if [ ! -z "$filter_younger_than" ]; then
+        log -p "--> filtering by creation timestamp younger than: ${cyan}$filter_younger_than${reset}"
+        new_versions=$(echo $new_versions  | tr '\r\n' ' ' | jq --argjson MIN_AGE $(( $(date +%s) - $filter_younger_than)) -r '[.[] | select(.metadata.creationTimestamp | fromdate | tonumber | select(. > $MIN_AGE)) ]')
+        log "$new_versions"
+    else
+        log "--> creation timestamp (younger than) filter not configured, skipping...."
     fi
 }
 
