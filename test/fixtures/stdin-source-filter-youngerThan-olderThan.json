@@ -1,0 +1,8 @@
+{
+  "source": {
+    "filter": {
+      "olderThan": 3000,
+      "youngerThan": 80000
+    }
+  }
+}
