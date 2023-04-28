@@ -40,7 +40,7 @@ fetchResource() {
 
     # fetch the requested resource
     log -p "\n--> Retrieving ${yellow}${source_resource_types}${reset} resource ${cyan}$uid${reset} at version ${cyan}$resourceVersion${reset} from cluster at ${blue}${source_url}${reset} in namespace ${blue}$(namespace)${reset}..."
-    kubectl --server=${source_url} --token=${source_token} ${certificate_arg} get ${source_resource_types} ${namespace_arg} --sort-by={.metadata.resourceVersion} -o json \
+    eval "kubectl --server=${source_url} --token=${source_token} ${certificate_arg} get ${source_resource_types} ${namespace_arg} --sort-by={.metadata.resourceVersion} -o json" \
           | jq --arg uid ${uid} --arg resourceVersion ${resourceVersion} '.items[] | select((.metadata.uid == $uid and .metadata.resourceVersion == $resourceVersion))' \
      > $target_dir/resource.json
 }

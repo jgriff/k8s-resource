@@ -19,7 +19,7 @@ queryForVersions() {
         namespace_arg="--all-namespaces"
     fi
     log -p "\n--> querying k8s cluster ${blue}${source_url}${reset} in namespace ${blue}$(namespace)${reset} for ${yellow}${source_resource_types}${reset} resources with selector ${cyan}${source_filter_selector}${reset}..."
-    new_versions=$(kubectl --server=${source_url} --token=${source_token} ${certificate_arg} get ${source_resource_types} ${namespace_arg} --selector="${source_filter_selector}" --sort-by='{.metadata.resourceVersion}' -o json | jq '[.items[]]' ) || exit $1
+    new_versions=$(eval "kubectl --server=${source_url} --token=${source_token} ${certificate_arg} get ${source_resource_types} ${namespace_arg} --selector=\"${source_filter_selector}\" --sort-by='{.metadata.resourceVersion}' -o json" | jq '[.items[]]' ) || exit $1
     log "$new_versions"
 }
 
